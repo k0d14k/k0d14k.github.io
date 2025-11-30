@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>K0D14K</title>
+    <link rel="stylesheet" href="static/style.css">
+    <link rel="shortcut icon" href="static/images/favicon.png" type="image/x-icon">
+</head>
+<body>
+    <canvas class="matrix-bg" id="matrix"></canvas>
+
+    <header>
+        <div class="header-content">
+            <div class="terminal-prompt">k0d14k@kali:~#</div>
+            <h1>Luca Puzzoni<span class="typing-cursor">_</span></h1>
+            <p class="subtitle">Softwate Security Consultant | Hacker | Full Stack Web Developer</p>
+        </div>
+    </header>
+
+    <nav>
+        <ul>
+            <li><a href="#about">Whoami</a></li>
+            <li><a href="#skills">Skills</a></li>
+            <li><a href="#projects">Projects</a></li>
+            <li><a href="#contact">Contancts</a></li>
+        </ul>
+    </nav>
+
+    <main>
+        <section id="about">
+            <h2>whoami</h2>
+            <p>
+                I'm Luca (a.k.a. k0d14k), a software security consultant and ethical hacker with a strong focus on web security and penetration testing. 
+                I regularly compete in Capture The Flag events, where I explore complex vulnerabilities, refine advanced exploitation techniques, and push my 
+                skills to the edge of modern offensive security.</p>
+            <p style="margin-top: 1rem;">
+                Through my work and research, I aim to break systems responsibly, understand how they fail, 
+                and help organizations build stronger, more resilient defenses.
+            </p>
+        </section>
+
+        <section id="skills">
+            <h2>ls -la /skills</h2>
+            <div class="skills-grid">
+                <div class="skill-card">
+                    <h3>Penetration Testing</h3>
+                    <p>
+                        I work actively in Web and Mobile Application Penetration Testing, following OWASP guidelines both in the execution of security 
+                        assessments and in the preparation of professional, evidence-based reports.
+                    </p>
+                </div>
+                <div class="skill-card">
+                    <h3>Security Tools</h3>
+                    <p>
+                        <ul>
+                            <li>Burp Suite</li>
+                            <li>Metasploit</li>
+                            <li>Nmap</li>
+                            <li>Wireshark</li>
+                            <li>Kali Linux</li>
+                            <li>Kali NetHunter</li>
+                            <li>Custom scripts</li>
+                        </ul>
+                    </p>
+                </div>
+                <div class="skill-card">
+                    <h3>Programming</h3>
+                    <p>
+                        <ul>
+                            <li>Python</li>
+                            <li>Bash</li>
+                            <li>PowerShell</li>
+                            <li>JavaScript</li>
+                            <li>Java</li>
+                        </ul>
+                    </p>
+                </div>
+                <div class="special-row">
+                    <div class="skill-card" id="pivot-1">
+                    <h3>Hobbies</h3>
+                    <p>
+                        In my free time, I sharpen my skills on platforms like HackTheBox and TryHackMe, and I enjoy developing personal tech 
+                        projects—security-related or not—as a way to fuel my curiosity.
+                    </p>
+                </div>
+                <div class="skill-card" id="pivot-2">
+                    <h3>Not Just Tech</h3>
+                    <p>
+                        I'm also passionate about mixed martial arts, with a particular focus on Brazilian Jiu-Jitsu, which I practice to challenge 
+                        myself, stay disciplined, and maintain a balanced lifestyle outside the digital world.
+                    </p>
+                </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="projects">
+            <h2>ls -la /projects</h2>
+            <div class="project">
+                <h3>drwxr-xr-x  19 root root  4096 Nov 19 08:26 .</h3>
+                <h3>drwxr-xr-x  19 root root  4096 Nov 19 08:26 ..</h3>
+            </div>
+        </section>
+
+        <section id="contact">
+            <h2>ssh contacts@kali</h2>
+            <p>Interested in collaborating or need cybersecurity consulting? Contact me through one of the following channels:</p>
+            <div class="contact-grid">
+                <div class="contact-item">
+                    <strong>Email</strong><br>
+                    <a href="mailto:k0d14k01@gmail.com">k0d14k01@gmail.com</a>
+                </div>
+                <div class="contact-item">
+                    <strong>LinkedIn</strong><br>
+                    <a href="https://linkedin.com/in/lucapuzzoni" target="_blank">linkedin.com/in/lucapuzzoni</a>
+                </div>
+                <div class="contact-item">
+                    <strong>GitHub</strong><br>
+                    <a href="https://github.com/k0d14k" target="_blank">github.com/k0d14k</a>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>Built with GitHub Pages —— Securing the web, one bug at a time.</p>
+        <p>&copy; 2025 K0D14K</p>
+    </footer>
+
+    <script>
+        // Matrix rain effect
+        const canvas = document.getElementById('matrix');
+        const ctx = canvas.getContext('2d');
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const chars = '01アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン';
+        const fontSize = 14;
+        const columns = canvas.width / fontSize;
+        const drops = Array(Math.floor(columns)).fill(1);
+
+        function drawMatrix() {
+            ctx.fillStyle = 'rgba(10, 14, 39, 0.05)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = '#00ff41';
+            ctx.font = fontSize + 'px monospace';
+
+            for (let i = 0; i < drops.length; i++) {
+                const text = chars[Math.floor(Math.random() * chars.length)];
+                ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+
+                if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+                    drops[i] = 0;
+                }
+                drops[i]++;
+            }
+        }
+
+        setInterval(drawMatrix, 50);
+
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+
+        // Smooth scrolling
+        document.querySelectorAll('nav a').forEach(anchor => {
+            anchor.addEventListener('click', function(e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
+        });
+    </script>
+</body>
+</html>
