@@ -142,26 +142,6 @@ h2::before {
     gap: 1.5rem;
 }
 
-
-@media (min-width: 576px) {
-  .special-row {
-    display: flex;
-    width: 314%;
-    justify-items: center;
-    }
-
-    #pivot-1 {
-        margin-right: 0.75rem;
-    }
-
-    #pivot-2 {
-        margin-left: 0.75rem;
-    }
-}
-
-
-
-
 .skill-card {
     background: rgba(0, 255, 65, 0.05);
     border: 1px solid var(--terminal-green);
