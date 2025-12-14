@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kali NetHunter Port for Xiaomi Mi 9 (cepheus)</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="shortcut icon" href="/static/images/favicon.png" type="image/x-icon">
+</head>
+<body>
+    <canvas class="matrix-bg" id="matrix"></canvas>
+
+    <header>
+        <div class="header-content">
+            <div class="terminal-prompt">k0d14k@kali:~#</div>
+            <div class="img-text">
+                <img src="/static/images/avatar.png" width="100rem">
+                <div class="text">
+                    <h1>Luca Puzzoni<span class="typing-cursor">_</span></h1>
+                    <p class="subtitle">Softwate Security Consultant | Hacker | Full Stack Web Developer</p>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <nav>
+        <ul>
+            <li><a href="/">Home</a></li>
+            <li><a href="/#about">Whoami</a></li>
+            <li><a href="/#skills">Skills</a></li>
+            <li><a href="/#projects">Projects</a></li>
+            <li><a href="/#contact">Contacts</a></li>
+        </ul>
+    </nav>
+
+    <button id="backToTop">↑</button>
+
+    <main style="text-align: justify;">        
+        <h1>Kali NetHunter Port for Xiaomi Mi 9 (cepheus)</h1>
+
+        <section id="index">
+            <h2>ls -l index</h2>
+            <div class="project">
+                <!--USED BY THE LISTER-->
+                <span id="time" hidden>Dec 14 01:10</span>
+            </div>
+        </section>
+
+        <section id="introduction">
+            <h2>cat introduction</h2>
+            <p>
+                Kali NetHunter is essentially a mobile penetration-testing distribution that turns a compatible Android device into a portable attack platform. 
+                It brings the capabilities of Kali Linux to smartphones.
+                <br><br>
+                Kali NetHunter is a penetration-testing framework composed of:
+
+                <ul>
+                    <li>
+                        <span class="highlight">A custom kernel</span> with patches tailored for mobile security assessments (e.g., HID gadget support, monitor mode on compatible chipsets, USB Arsenal).
+                    </li>
+                    <li>
+                        <span class="highlight">A Kali Linux chroot or container</span> providing the full suite of well-known security tools such as Nmap, SQLmap, Metasploit, Impacket, and the broader Kali toolset.
+                    </li>
+                    <li>
+                        <span class="highlight">An Android application acting as a control center</span>, used to launch tools, manage permissions, and expose modules like HID Attacks, MITM utilities, Wi-Fi toolkits, and more.
+                    </li>
+                    <li>
+                        <span class="highlight">Physical-layer attack capabilities</span>, including BadUSB/HID keyboard emulation, USB network spoofing, Evil AP setup, and wireless packet injection where supported by the hardware.
+                    </li>
+                </ul>
+            </p>
+
+            <p>
+                From a defensive security perspective, understanding NetHunter is valuable because it highlights the "mobile" side of the attack surface: 
+                USB gadgeting, NFC fuzzing, Android permission handling, kernel hardening, and the ways in which a compromised device can be leveraged as a 
+                pivot point.
+            </p>
+            <p>
+                In CTF or red-team scenarios, it becomes a compact attack platform, enabling network and device testing even on the move and allowing realistic 
+                "proximity-based" attack simulations that would be far less natural to execute from a desktop environment.
+            </p>
+            <p>
+                This guide explains how to start from a fully locked device (without root access) and transform it into a system with full NetHunter support, 
+                including a custom-patched kernel that provides the required compatibility with the framework.
+            </p>
+            <p>
+                The first place you might expect to find useful information is the official <a href="https://kali.org/get-kali" target="_blank">Kali</a> website. 
+            </p>
+            <p>
+                On the site, under the Mobile --> NetHunter section (excluding NetHunter PRO), you can find the list of supported devices. These devices, along 
+                with their recommended custom ROMs, are referred to as "listed devices" and feature native support with kernels patched directly by the Kali 
+                developers. All other devices not explicitly mentioned fall into the "generic devices" category.
+            </p>
+            <p>
+                As mentioned earlier, Kali NetHunter includes a chroot containing a root filesystem. Depending on the tools included in the installation package, 
+                there are different formats available: nano, minimal, and full.
+            </p>
+            <p>
+                But the real question is: <em>"Why should I build a custom kernel when I could simply use the Kali installer?"</em>
+            </p>
+            <p>
+                The answer may sound obvious, yet it took me much longer than expected to fully understand it and that's exactly why I decided to write this article.
+                The main issue with the generic NetHunter installation is, in fact, its generic nature. Since it must run on any rooted device, it cannot account for 
+                all the hardware differences across models and therefore cannot guarantee compatibility with the hardware interfaces that make NetHunter such an effective 
+                tool for red teaming and physical-layer hacking.
+            </p>
+            <p>
+                Let's begin this journey with the modification of my Xiaomi Mi 9 (cepheus). Since it is not officially supported, it caused more than a few headaches, 
+                but also a great deal of satisfaction once I finally completed the process and understood the full potential of this framework.
+            </p>
+        </section>
+
+        <section id="cepheus_root">
+            <h2>cat cepheus_root</h2>
+            <h3>Step 1 - Bootloader Unlock.</h3>
+
+            <div class="callout warning">
+                <h4>Warning</h4>
+                <p>This procedure will erase all data on your device, so make sure to create a full backup beforehand.</p>
+            </div>
+
+            <p>
+                Unlocking the bootloader is relatively straightforward, as Xiaomi officially supports this procedure. The required steps are: <br>
+                <ol>
+                    <li>
+                        Open <span class="highlight">About Phone</span> and tap repeatedly on <span class="highlight">MIUI Version</span> to enable Developer Options. <br><br>
+                        <img src="images/1.jpg" width="300rem">
+                        <img src="images/2.jpg" width="300rem">
+                    </li>
+                    <li>
+                        Once Developer Options are available, enable <span class="highlight">Debug USB</span>, <span class="highlight">OEM Unlocking</span> and open <span class="highlight">Mi Unlock Status</span>.
+                        From there, add your Xiaomi account and link it to the device. The Debug USB option will allow us to issue
+                        commands via the Android <a href="https://developer.android.com/tools/releases/platform-tools" target="_blank">platform-tools</a>.
+                        If you are starting from zero you should need to install them. <br><br>
+                        <img src="images/3.jpg" width="300rem">
+                        <img src="images/4.jpg" width="300rem">
+                        <img src="images/5.jpg" width="300rem">
+                    </li>
+                    <li>
+                        Download the Mi Unlock Tool, sign in with the same Xiaomi account, connect the device in fastboot mode, 
+                        and initiate the unlock process. <br><br>
+                        
+                        <img src="images/6.png" width="300rem">
+                        <img src="images/7.png" width="300rem">
+                        <img src="images/8.png" width="300rem">
+                    </li>
+                </ol>
+
+                <br>
+                Once the device has rebooted, return to the Developer Options menu. At this point, you should see a configuration similar to the following:
+                <br>        <br>        
+                <img src="images/9.jpg" width="300rem">
+            </p>
+
+            <h3>Step 2 - Flashing a custom recovery.</h3>
+            <p>
+                For this guide, I will use the PixelOS custom <a href="https://pixelos.net/download/cepheus" target="_blank">ROM</a>, maintained by a developer known as 
+                <a href="https://github.com/balgxmr" target="_blank">@balgxmr</a>. The first step, therefore, is to install the official custom recovery provided for this ROM: 
+                PixelOS Recovery. <br><br>
+                Connect you device, allow debug usb and send following commands: <br><br>
+                <div class="callout warning">
+                    <h4>Warning</h4>
+                    <p>
+                        I'm a Linux user, if you are a Windows one your sintax could be a little bit different but you should solve by adding .exe at the end 
+                        of the command eg. adb --> adb.exe
+                    </p>
+                </div>
+
+                <div class="code">
+                    adb reboot-bootlaoder <br>
+                    fastboot flash recovery [recovery name] <br>
+                    fastboot boot [recovery name]
+                </div>
+
+                <div class="callout info">
+                    <h4>Info</h4>
+                    <p>
+                        [recovery name] referes to the name of the recovery file you downlaoded.
+                    </p>
+                </div>
+            </p>
+
+            <h3>Step 3 - Flashing custom ROM and Magisk.</h3>
+            <p>
+                Once the custom recovery has been flashed, we can proceed with installing the custom ROM and the Magisk package required for root privilege
+                management. <br><br>
+                To do this, boot the device into recovery mode and, after wiping all data using the <span class="highlight">Wipe Data</span> and 
+                <span class="highlight">Factory Reset</span> options, navigate to
+                <span class="highlight">Apply Update -->  Aply from ADB</span> and install both packages using <span class="highlight">adb sideload</span>. <br><br>
+
+                <img src="images/10.png" width="260rem">
+                <img src="images/11.png" width="260rem">
+                <img src="images/12.png" width="260rem">
+                <img src="images/13.png" width="260rem">
+
+                <div class="code">
+                    adb sideload [rom zip file] <br>
+                    adb sideload [magisk zip file]
+                </div>
+
+                <div class="callout info">
+                    <h4>Info</h4>
+                    <p>
+                        [rom zip file] referes to the name of the custom ROM package you downlaoded. <br>
+                        [magisk zip file] referes to the file you get by copying the magisk apk and renaming it from .apk into .zip. It is recommended to use Magisk 28.1
+                    </p>
+                </div>
+
+                At this stage, the device is fully rooted and we can proceed with porting our NetHunter build. But first, we need a recovery that supports the 
+                dynamic partitions of the Cepheus. The TWRP EROFS comes to the rescue (which I obtained for you from the PixelOS Telegram channel) and is 
+                available for download <a href="files/recovery.img">here</a>.
+
+                <div class="code">
+                    adb reboot-bootloader <br>
+                    fastboot flash recovery recovery.img <br>
+                    fastboot boot recovery.img <br>
+                </div>
+                
+            </p>
+        </section>
+
+        <section id="nethunter_kernel_builder">
+            <h2>cat nethunter_kernel_builder</h2>
+            <p>
+                Setting aside how a kernel actually operates on Android, the main reasons why users create custom versions of their kernel are essentially two:
+                <ol>
+                    <li>To modify or optimize existing functionalities;</li>
+                    <li>To extend the supported capabilities with new features;</li>
+                </ol>
+                <br>
+                In the case of the NetHunter port, as mentioned earlier, it is necessary to rely on internal hardware, external peripherals, and specialized 
+                devices to perform certain types of tests involving technologies such as Bluetooth, CAN, and Wi-Fi. The official Kali documentation provides 
+                extensive guidance on how to configure the kernel to ensure NetHunter compatibility, but in practice several issues may arise (issues that I 
+                managed to address during my research).
+            </p>
+
+            <p>
+                I do not want this article to become overly long, technical, or tedious for readers who are not specialists. However, I would like to focus on 
+                the key points that enabled the creation of this project.
+            </p>
+
+            <p>
+                Everything starts from the base configuration. The choice of the PixelOS custom ROM was intentional: I selected it both because the maintainer 
+                is quite active and because the kernel source code is publicly available on GitHub. <br><br>
+
+                The same process could have been carried out using the official Xiaomi kernel, but unfortunately I was unable to locate the complete source code.
+                Many manufacturers, despite Android kernels being subject to the GPL license, do not release all the components they have developed for their 
+                devices, making the process even more challenging.
+            </p>
+
+            <p>
+                Once the kernel source code is obtained, the next step is compiling it. To accomplish this, I created a Docker container containing all the 
+                required build tools.
+            </p>
+
+            <p>
+                The practical section of this article focused on understanding how to make the different kernel components operate as intended. The basic 
+                NetHunter support can be implemented simply through configuration, while the most challenging aspect was enabling driver support for the 
+                TP-Link <a href="https://www.tp-link.com/it/home-networking/adapter/tl-wn722n/" target="_blank">TL-WN722N v2</a> Wi-Fi adapter. This device 
+                is not designed for security testing (and it does not natively support monitor mode or packet injection), but it can be adapted using custom 
+                drivers developed by Aircrack for the Realtek RTL8188EUS chipset.
+            </p>    
+            
+            <p>
+                I consolidated all the adaptation work and the porting of the Cepheus kernel into a setup script that prepares the source code for use with the 
+                Kali NetHunter Kernel Builder.
+            </p>
+
+            <p>
+                As a result, in this guide I will not focus on how to apply the individual code modifications (since I have already made them for you), but 
+                instead on how to execute my script (and we will actually see that you won't even need to run it).
+
+                <div class="code">
+                    git clone https://github.com/k0d14k/mi_9_cepheus_kali_nethunter_setup <br>
+                    cd mi_9_cepheus_kali_nethunter_setup <br>
+                    docker compose up -d <br>
+                    docker exec -it k0d14k-nh-builder bash <br>
+                    ./runner.sh <br>
+                </div>
+
+                These commands are all you need to run my script. Just make sure that Git and Docker are properly installed and configured. Once executed, the 
+                script will clone my kernel fork and automatically apply all the required patches. Your only task will be to use the Kali NetHunter Kernel 
+                Builder script for a few operations that we will examine in detail later on.
+            </p>
+
+            <p>
+                Do not worry if cloning some components takes longer than expected; this is simply because the projects are quite large and therefore relatively
+                heavy.
+            </p>
+
+            <img src="images/14.png" width="1000rem;">
+            <p>
+                This is how your terminal will appear once the script is ready to launch the Kali one. I want to reiterate that I am running the entire process 
+                from a Linux distribution, and I strongly recommend that you do the same. None of the procedures described in this document (with the exception 
+                of the bootloader unlocking tools, which are Windows-specific) have been tested outside of Linux, and they may therefore not work correctly or 
+                could potentially cause issues.
+            </p>
+
+            <p>
+                Once you press <span class="highlight">ENTER</span>, follow the steps below:
+
+                <ol>
+                    <li>
+                        In "4. Apply NetHunter kernel patches", select kernel version <span class="highlight">4.14</span> and apply patches <span class="highlight">4</span> and 
+                        <span class="highlight">5</span>.
+                    </li>
+                    <li>
+                        In "2. Configure & compile kernel from scratch", choose the <span class="highlight">cepheus_defconfig</span> file and, when prompted with 
+                        "Edit the kernel config? [Y/n]", select <span class="highlight">Y</span> to configure the kernel.
+                    </li>
+                    <li>The following screens will display the options to select and how to configure them.</li>
+                </ol>
+            </p>
+
+            <img src="images/15.png" width="1000rem">
+            <img src="images/16.png" width="1000rem">
+            <p>
+                Back --> General Setup
+            </p>
+            <img src="images/17.png" width="1000rem">
+            <img src="images/18.png" width="1000rem">
+
+            <p>
+                Device Drivers --> Network device support --> Wireless LAN
+            </p>
+
+            <img src="images/19.png" width="1000rem">
+
+            <p>
+                Go back until you reach the screen shown below; at that point, select <span class="highlight">No</span> and let the script handle the remainder of the process 
+                automatically.
+            </p>
+            
+            <img src="images/20.png" width="1000rem">
+
+            <p>
+                You can also answer <span class="highlight">No</span> to the prompt "Save .config as nethunter_defconfig? [y/n]".
+            </p>
+            <p>
+                At this stage, all you need to do is generate the AnyKernel installation package using the <span class="highlight">"6. Create AnyKernel zip"</span> command.  
+                Once the zip file has been created, reboot your device into recovery mode and flash it, enabling full NetHunter functionality on your system.
+            </p>
+            <p>
+                At the end of the process, you can use the <span class="highlight">E</span> command to exit the Kali NetHunter Kernel Builder.  
+                My script will then resume its execution, saving the results in the <span class="highlight">output</span> directory and removing all the source code.
+            </p>
+
+        </section>
+
+        <section id="nethunter_installer_builder">
+            <h2>cat nethunter_installer_builder</h2>
+
+            <p>
+                Once the build process is completed using a fork of the official <a href="https://gitlab.com/kalilinux/nethunter/build-scripts/kali-nethunter-kernels">repository</a>,
+                it is possible to upload the modified kernel and, by editing and building the corresponding <span class="highlight">devices.yml</span> file, add a custom port to the list of 
+                devices supported by Kali NetHunter. The original commit can be reviewed at the following 
+                <a href="https://gitlab.com/kalilinux/nethunter/build-scripts/kali-nethunter-kernels/-/tree/fefd65386779c4b844d5910dcb8ac7b4a509c0e4">link</a>.
+            </p>
+
+            <p>
+                After the merge request has been opened and approved, the Kali NetHunter Installer Builder repository can be used to create a custom 
+                installation package for cepheus directly with the official toolchain.
+            </p>
+
+            <p>The following commands allow you to build the **Kali NetHunter Full** installation package using my port:</p>
+
+            <div class="code">
+                git clone https://gitlab.com/kalilinux/nethunter/build-scripts/kali-nethunter-installer <br>
+                cd kali-nethunter-installer <br>
+                ./bootstrap.sh <br>
+                python3 build.py --kernel cepheus-pos --fifteen --rootfs full <br>
+            </div>
+
+            <p>Once the installation package has been built, it is sufficient to upload the resulting ZIP to the device and install it as a Magisk module.</p>
+
+            <img src="images/21.png" width="260rem">
+            <img src="images/22.png" width="260rem">
+            <img src="images/23.png" width="260rem">
+            <img src="images/24.png" width="260rem">
+
+            <p>
+                The porting process is complete. Since Kali NetHunter is effectively a Linux instance, it is assumed that the reader is already 
+                familiar with using Linux and knows how to install libraries and apply updates.
+            </p>
+        </section>
+
+        <section id="conclusions_insights_and_future_project">
+            <h2>cat conclusions_insights_and_future_project</h2>
+
+            <p>
+                I apologize to enthusiasts for the rapid pace of the final part of this article (for any questions or doubts, feel free to contact me 
+                through the channels listed in the contact section), but my goal was to make the use of Kali NetHunter on cepheus as straightforward 
+                as possible.
+            </p>
+
+            <p>
+                Porting project for the Mi 9 (cepheus) has been particularly interesting for me. It allowed me to deepen my knowledge of topics I was 
+                previously less familiar with and, perhaps more importantly, it sparked my motivation to challenge myself and strengthened my interest 
+                in red teaming.
+            </p>
+
+            <p>
+                In the near future, I plan to further explore physical pentesting and the use of NetHunter. I may also work on porting new Android versions 
+                once they are released and, who knows, possibly publish useful tools on my GitHub for this framework, which in my humble opinion any pentester 
+                interested in and passionate about red teaming should be familiar with.
+            </p>
+
+            <p>
+                Finally, I would like to emphasize that NetHunter, like any other cybersecurity framework or tool, is merely a means to achieve a goal. 
+                If the goal is ethical, that is welcome; if it is malicious, I take no responsibility for how this tool is used.
+            </p>
+
+            <p>
+                I promise to keep you updated on any future developments and new ideas, hoping that you will find these projects interesting and valuable.
+            </p>
+
+
+            <div class="author">
+                ~K0D14K
+            </div>
+        </section>
+
+        <section id="resources">
+            <h2>cat resources</h2>
+            <h3>References</h3>
+            <ul>
+                <li>
+                    <a href="https://www.kali.org/docs/nethunter/porting-nethunter-kernel-builder/" target="_blank">Official Kali Documentation</a>
+                </li>
+                <li>
+                    <a href="https://issei.space/blog/crosscompile-android-kernel/#backstory---why-i-want-to-compile-the-kernel-for-my-phone" target="_blank">Issei.space - Why I wanto to compile the kernel for my phone</a>
+                </li>
+                <li>
+                    <a href="https://gitlab.com/akabulous/So_You_Want_To_Build_A_Nethunter_Kernel" target="_blank">Akabulous - So you wnato to build a Nethunter kernel?</a>
+                </li>
+                <li>
+                    <a href="https://r0ttenbeef.github.io/Port-Custom-Build-of-Kali-Nethunter-to-an-Unsupported-Phone-Walkthrough/" target="_blank">r0ttenbeef - Port custom build of Kali Nethunter to an Unsupported Phone</a>
+                </li>
+            </ul>
+
+            <h3>Links</h3>
+            <ul>
+                <li>
+                    <a href="https://nethunter.kali.org/kernels.html" target="_blank">NetHunter Kernels List</a>
+                </li>
+                <li>
+                    <a href="https://gitlab.com/kalilinux/nethunter/build-scripts/kali-nethunter-kernels" target="_blank">NetHunter Kernels Project</a>
+                </li>
+                <li>
+                    <a href="https://gitlab.com/kalilinux/nethunter/build-scripts/kali-nethunter-installer" target="_blank">NetHunter Installer Builder</a>
+                </li>
+                <li>
+                    <a href="https://github.com/k0d14k/mi_9_cepheus_kali_nethunter_setup" target="_blank">k0d14k Mi9 NH builder setup</a>
+                </li>
+            </ul>
+        </section>
+    </main>
+
+
+    <footer>
+        <p>Built with GitHub Pages —— Securing the web, one bug at a time.</p>
+        <p>&copy; 2025 K0D14K</p>
+    </footer>
+
+    <script src="/static/script.js"></script>
+    <script> lister() </script>
+</body>
