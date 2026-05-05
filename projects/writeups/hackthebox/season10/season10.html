@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTB - Season10 - Writeups</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="shortcut icon" href="/static/images/favicon.png" type="image/x-icon">
+</head>
+<body>
+    <canvas class="matrix-bg" id="matrix"></canvas>
+
+    <header>
+        <div class="header-content">
+            <div class="terminal-prompt">k0d14k@kali:~#</div>
+            <div class="img-text">
+                <img src="/static/images/avatar.png" width="100rem">
+                <div class="text">
+                    <h1>Luca Puzzoni<span class="typing-cursor">_</span></h1>
+                    <p class="subtitle">Softwate Security Consultant | Hacker | Full Stack Web Developer</p>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <nav>
+        <ul>
+            <li><a href="/">Home</a></li>
+            <li><a href="/#about">Whoami</a></li>
+            <li><a href="/#skills">Skills</a></li>
+            <li><a href="/#projects">Projects</a></li>
+            <li><a href="/#contact">Contacts</a></li>
+        </ul>
+    </nav>
+
+    <button id="backToTop">↑</button>
+
+    <main style="text-align: justify;">        
+        <h1>HackTheBox Season10 Writeups</h1>
+
+        <section id="index">
+            <h2>ls -l index</h2>
+            <div class="project">
+                <!--USED BY THE LISTER-->
+                <span id="time" hidden>26 Apr 14 01:10</span>
+            </div>
+        </section>
+
+        <section id="introduction">
+            <h2>cat introduction</h2>
+            <img src="images/holo.png" alt="1000rem">
+            <p>
+                Together with team <a href="https://blog.mhackheckazzo.xyz/" target="_blank">mHackHeckazzo</a>, I had a great time playing the new HackTheBox 
+                Season 10. In this collection of write-ups, I want to showcase the solving methods I used and how, with the help of the team, I managed to achieve 
+                the Holo rank by solving 12/13 machines.
+            </p>
+            <p>
+                The difficulty of the machines ranges from <span class="highlight">Easy Linux</span> to <span class="highlight">Insane Windows</span>.
+                I believe I learned a lot from each of these boxes.
+            </p>
+        </section>
+
+        <section id="writeups">
+            <h2>ls -al writeups</h2>
+            <div class="skills-grid">
+                <div class="skill-card">
+                    <img src="images/facts.png" width="300px">
+                    <button>
+                        <a href="1_facts.html">Facts<br>Easy - Linux</a>
+                    </button>
+                </div>
+                <div class="skill-card">
+                    <img src="images/pterodactyl.png" width="300px">
+                    <button>
+                        <a href="2_pterodactyl.html">Pterodactyl<br>Medium - Linux</a>
+                    </button>
+                </div>
+                <div class="skill-card">
+                    <img src="images/wingdata.png" width="300px">
+                    <button>
+                        <a href="3_wingdata.html">WingData<br>Easy - Linux</a>
+                    </button>
+                </div>
+                <div class="skill-card">
+                    <img src="images/interpreter.png" width="300px">
+                    <button>
+                        <a href="4_interpreter.html">Interpreter<br>Medium - Linux</a>
+                    </button>
+                </div>
+                <div class="skill-card">
+                    <img src="images/pirate.png" width="300px">
+                    <button>
+                        <a href="5_pirate.html">Pirate<br>Hard - Windows</a>
+                    </button>
+                </div>
+                <div class="skill-card">
+                    <img src="images/cctv.png" width="300px">
+                    <button>
+                        <a href="6_cctv.html">CCTV<br>Easy - Linux</a>
+                    </button>
+                </div>
+                <div class="skill-card">
+                    <img src="images/variatype.png" width="300px">
+                    <button>
+                        <a href="7_variatype.html">VariaType<br>Medium - Linux</a>
+                    </button>
+                </div>
+                <div class="skill-card">
+                    <img src="images/kobold.png" width="300px">
+                    <button>
+                        <a href="8_kobold.html">Kobold<br>Easy - Linux</a>
+                    </button>
+                </div>
+                <div class="skill-card">
+                    <img src="images/devarea.png" width="300px">
+                    <button>
+                        <a href="9_devarea.html">DevArea<br>Medium - Linux</a>
+                    </button>
+                </div>
+                <div class="skill-card">
+                    <img src="images/garfield.png" width="300px">
+                    <button>
+                        <a href="10_garfield.html">Garfield<br>Hard - Windows</a>
+                    </button>
+                </div>
+                <div class="skill-card">
+                    <img src="images/silentium.png" width="300px">
+                    <button>
+                        <a href="11_silentium.html">Silentium<br>Easy - Linux</a>
+                    </button>
+                </div>
+                <div class="skill-card">
+                    <img src="images/logging.png" width="300px">
+                    <button>
+                        <a href="12_logging.html">Logging<br>Medium - Linux</a>
+                    </button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+
+    <footer>
+        <p>Built with GitHub Pages —— Securing the web, one bug at a time.</p>
+        <p>&copy; 2025 K0D14K</p>
+    </footer>
+
+    <script src="/static/script.js"></script>
+    <script> lister() </script>
+</body>

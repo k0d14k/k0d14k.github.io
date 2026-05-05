@@ -271,6 +271,9 @@ footer {
     background-color: black;
     padding: 0.7rem;
     margin: 1rem 0 1rem 0;
+    text-align: start !important;
+    overflow: scroll;
+    width: 67rem;
 }
 
 .highlight {
@@ -296,6 +299,7 @@ footer {
     box-shadow: 0 4px 12px rgba(0,0,0,0.2);
     transition: background 0.3s ease;
     z-index: 9999; /* sempre davanti */
+    width: 2.5%;
 }
 
 #backToTop:hover {
@@ -323,3 +327,32 @@ ul, ol { margin-left: 3rem;}
 p { margin: 1.5rem 0 1.5rem 0; }
 
 .author { text-align: end !important; }
+
+button {
+    display: inline-block;
+    padding: 12px 20px;
+    font-size: 16px;
+    font-weight: 600;
+    background: transparent;
+    color: rgba(9, 255, 0, 0.5);
+    border: 2px solid rgba(9, 255, 0, 0.5);
+    border-radius: 10px;
+    cursor: pointer;
+    text-decoration: none;
+    box-shadow: 0 4px 14px rgba(9, 255, 0, 0.5);
+    transition: all 0.2s ease;
+    margin-top: 1.5rem;
+    width: 100%;
+}
+
+button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(9, 255, 0, 0.5);
+    background: rgba(9, 255, 0, 0.5);
+    color: #fff;
+}
+
+button:active {
+    transform: translateY(0);
+    box-shadow: 0 3px 10px rgba(79, 70, 229, 0.3);
+}

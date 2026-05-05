@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+   <meta charset="UTF-8">
+   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <title>HTB - Season10 - Writeups - Silentium</title>
+   <link rel="stylesheet" href="/static/style.css">
+   <link rel="shortcut icon" href="/static/images/favicon.png" type="image/x-icon">
+</head>
+<body>
+   <canvas class="matrix-bg" id="matrix"></canvas>
+
+   <header>
+      <div class="header-content">
+         <div class="terminal-prompt">k0d14k@kali:~#</div>
+         <div class="img-text">
+               <img src="/static/images/avatar.png" width="100rem">
+               <div class="text">
+                  <h1>Luca Puzzoni<span class="typing-cursor">_</span></h1>
+                  <p class="subtitle">Softwate Security Consultant | Hacker | Full Stack Web Developer</p>
+               </div>
+         </div>
+      </div>
+   </header>
+
+   <nav>
+      <ul>
+         <li><a href="/">Home</a></li>
+         <li><a href="/#about">Whoami</a></li>
+         <li><a href="/#skills">Skills</a></li>
+         <li><a href="/#projects">Projects</a></li>
+         <li><a href="/#contact">Contacts</a></li>
+      </ul>
+   </nav>
+
+   <button id="backToTop">↑</button>
+
+    <main style="text-align: justify;">     
+        <img src="images/silentium.png" alt="500rem">   
+        <h1>Silentium - HTB Season 10</h1>
+
+        <p>
+            <b>Categories</b>: #flowwiseai, #CVE-2025-58434, #CVE-2025-59528, #docker-breakout, #gogs, #CVE-2025-8110
+        </p>
+
+        <hr>
+
+        <section id="index">
+            <h2>ls -l index</h2>
+            <div class="project">
+                <!--USED BY THE LISTER-->
+                <span id="time" hidden>26 Apr 14 01:10</span>
+            </div>
+        </section>
+
+        <section id="enumeration">
+            <h2>cat enumeration</h2>
+            <h3>Nmap TCP Scan</h3>
+            
+            <div class="code">
+                # Nmap 7.95 scan initiated Sun Apr 12 15:49:26 2026 as: nmap -sC -sV -vvv -T4 -Pn -p- -oN enum/tcp-scan.txt 10.129.23.219 <br>
+                Nmap scan report for 10.129.23.219 <br>
+                Host is up, received user-set (0.14s latency). <br>
+                Scanned at 2026-04-12 15:49:26 CEST for 137s <br>
+                Not shown: 65533 closed tcp ports (reset) <br>
+                PORT&nbsp;&nbsp; STATE SERVICE REASON&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; VERSION <br>
+                22/tcp open&nbsp;&nbsp;ssh&nbsp;&nbsp;&nbsp;&nbsp; syn-ack ttl 63 OpenSSH 9.6p1 Ubuntu 3ubuntu13.15 (Ubuntu Linux; protocol 2.0) <br>
+                | ssh-hostkey:&nbsp;&nbsp;<br>
+                |&nbsp;&nbsp; 256 0c:4b:d2:76:ab:10:06:92:05:dc:f7:55:94:7f:18:df (ECDSA) <br>
+                | ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBN9Ju3bTZsFozwXY1B2KIlEY4BA+RcNM57w4C5EjOw1QegUUyCJoO4TVOKfzy/9kd3WrPEj/FYKT2agja9/PM44= <br>
+                |&nbsp;&nbsp; 256 2d:6d:4a:4c:ee:2e:11:b6:c8:90:e6:83:e9:df:38:b0 (ED25519) <br>
+                |_ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIH9qI0OvMyp03dAGXR0UPdxw7hjSwMR773Yb9Sne+7vD <br>
+                80/tcp open&nbsp;&nbsp;http&nbsp;&nbsp;&nbsp;&nbsp;syn-ack ttl 63 nginx 1.24.0 (Ubuntu) <br>
+                | http-methods:&nbsp;&nbsp;<br>
+                |_&nbsp;&nbsp;Supported Methods: GET HEAD POST OPTIONS <br>
+                |_http-server-header: nginx/1.24.0 (Ubuntu) <br>
+                |_http-title: Did not follow redirect to http://silentium.htb/ <br>
+                Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel <br>
+                <br>
+                Read data files from: /usr/bin/../share/nmap <br>
+                Service detection performed. Please report any incorrect results at https://nmap.org/submit/ . <br>
+                # Nmap done at Sun Apr 12 15:51:43 2026 -- 1 IP address (1 host up) scanned in 136.66 seconds
+            </div>
+
+            <p>The TCP port scan shows only <span class="highlight">SSH</span> and <span class="highlight">HTTP</span> services.</p>
+
+            <h3>Fuzzing</h3>
+            <p>
+                Enumerating resources directly linked to <span class="highlight">silentium.htb</span> yields nothing. Through subdomain 
+                enumeration I manage to retrieve a vhost <span class="highlight">staging.silentium.htb</span>. A <span class="highlight">FlowiseAI</span> 
+                instance is running on this secondary domain.
+            </p>
+
+            <div class="code">
+                k0d14k@kpb:~/Documenti/silentium$ whatweb staging.silentium.htb
+                http://staging.silentium.htb [200 OK] Country[RESERVED][ZZ], HTML5, HTTPServer[Ubuntu Linux][nginx/1.24.0 (Ubuntu)], IP[10.129.23.219], Meta-Author[FlowiseAI], Open-Graph-Protocol[website], Script[module], Title[Flowise - Build AI Agents, Visually], UncommonHeaders[access-control-allow-credentials], nginx[1.24.0]
+            </div>
+
+            <p>
+                Not being familiar with the technology, I search for information and discover that version <span class="highliht">3.0.4</span> 
+                (released in July 2025) has an RCE tracked as <a target="_blank" href="https://nvd.nist.gov/vuln/detail/CVE-2025-59528">CVE-2025-59528</a>. 
+                To correctly use the public exploit provided by Rapid7, two requirements must be met:
+            
+                <ol>
+                    <li>being an authenticated user</li>
+                    <li>the software version must actually be that one</li>
+                </ol>
+            </p>
+
+            <p>
+                I also discover that FlowiseAI exposes an API set at <span class="highlight">/api/v1</span>. I start a fuzzer to look 
+                for useful unauthenticated information. Beyond the version (which turns out to be 3.0.5, ruling out the possible CVE) 
+                I find nothing useful.
+            </p>
+            
+            <p>Going back to the Flowise login page I notice a possible User Enumeration in the password recovery form:</p>
+
+            <img src="images/Pasted image 20260412175625.png" width="1000rem">
+
+            <p>
+                The email must follow the format <span class="highlight">user@company.com</span>, so in this case I expect 
+                <span class="high">[user]@silentium.htb</span> I run an enumeration with Intruder, through which I discover the existence 
+                of a user <span class="highlight">admin</span> with email <span class="highlight">ben@silentium.htb</span>.
+            </p>
+            
+            <img src="images/Pasted image 20260412181823.png" width="1000rem">
+
+            <p>I try to crack the Bcrypt password but none of the wordlists I used managed to give me clear-text credentials.</p>
+
+            <p>
+                I therefore went back to investigating known vulnerabilities and found an exploit that chains the execution of CVE-2025-58434 
+                and CVE-2025-59528, available <a target="_blank" href="https://github.com/Kamigold/Flowise-RCE/tree/main">here</a>.
+            </p>
+
+            <p>
+                The first one allows, via an Authorization Bypass, to force a password change on an account. The second executes a command 
+                once the connection is established.
+            </p>
+        </section>
+
+        <section id="foothold">
+            <h2>cat foothold</h2>
+            
+            <p>By exploiting the above, I manage to establish a reverse shell inside a Docker container:</p>
+
+            <img src="images/Pasted image 20260414020237.png" width="1000rem">
+
+            <p>
+                The current focus is to break out of the container to reach the main host and, presumably, obtain the user flag. 
+                To understand the starting situation I run <span class="highlight">linpeas.sh</span> as usual and among the results I find:
+            </p>
+            
+            <div class="code">
+                ╔══════════╣ Checking all env variables in /proc/*/environ removing duplicates and filtering out useless env vars (T1552.007,T1082) <br>
+                ALLOW_UNAUTHORIZED_CERTS=true <br>
+                DATABASE_PATH=/root/.flowise <br>
+                FLOWISE_PASSWORD=F1l3_d0ck3r <br>
+                FLOWISE_USERNAME=ben <br>
+                HOME=/root <br>
+                HOSTNAME=c78c3cceb7ba <br>
+                JWT_AUDIENCE=AUDIENCE <br>
+                JWT_AUTH_TOKEN_SECRET=AABBCCDDAABBCCDDAABBCCDDAABBCCDDAABBCCDD <br>
+                JWT_ISSUER=ISSUER <br>
+                JWT_REFRESH_TOKEN_EXPIRY_IN_MINUTES=43200 <br>
+                JWT_REFRESH_TOKEN_SECRET=AABBCCDDAABBCCDDAABBCCDDAABBCCDDAABBCCDD <br>
+                JWT_TOKEN_EXPIRY_IN_MINUTES=360 <br>
+                LANG=C <br>
+                LC_CTYPE=C.UTF-8 <br>
+                LLM_PROVIDER=nvidia-nim <br>
+                NODE_VERSION=20.19.4 <br>
+                NVIDIA_NIM_LLM_MODE=managed <br>
+                OLDPWD=/ <br>
+                OLDPWD=/root/.flowise <br>
+                PORT=3000 <br>
+                PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser <br>
+                PWD=/ <br>
+                PWD=/tmp <br>
+                SECRETKEY_PATH=/root/.flowise <br>
+                SENDER_EMAIL=ben@silentium.htb <br>
+                SHLVL=1 <br>
+                SHLVL=2 <br>
+                SHLVL=3 <br>
+                SMTP_HOST=mailhog <br>
+                SMTP_PASSWORD=r04D!!_R4ge <br>
+                SMTP_PORT=1025 <br>
+                SMTP_SECURE=false <br>
+                SMTP_USER=test <br>
+                SMTP_USERNAME=test <br>
+                USER=root <br>
+                YARN_VERSION=1.22.22
+            </div>
+
+            <p>
+                <span class="highlight">FLOWISE_PASSWORD</span> and <span class="highlight">SMTP_PASSWORD</span> contain passwords that may have 
+                been reused by ben. I try both and obtain a shell via <span class="highlight">ssh</span> and the <span class="highlight">user flag</span>.
+            </p>
+            
+            <img src="images/Pasted image 20260414033644.png" width="1000rem">
+        </section>
+
+        <section id="privilege-escalation">
+            <h2>cat privilege-escalation</h2>
+        
+            <p>Inside ben's session I run <span class="highlight">sudo -l</span> but cannot run anything as root:</p>
+
+            <div class="code">
+                ben@silentium:/tmp$ sudo -l <br>
+                [sudo] password for ben:  <br>
+                Sorry, user ben may not run sudo on silentium.
+            </div>
+
+            <p>
+                I therefore run <span class="highlight">linpeas.sh</span> again and among the various results I discover the existence of 
+                a <span class="highlight">vhost</span> that had not been detected during enumeration: 
+                <span class="highlight">staging-v2-code.dev.silentium.htb</span>.
+            </p>
+            
+            <img src="images/Pasted image 20260414185603.png" width="1000rem">
+
+            <p>
+                Gogs is a self-hosted Git repository. It appears to be affected by several CVEs. I register a user and log in to look for 
+                the version but cannot find it.
+            </p>
+
+            <p>
+                Searching for known exploits for Gogs I find 3 CVEs. After trying them all in chronological order I discover that the instance 
+                is vulnerable to <a target="_blank" href="https://github.com/zAbuQasem/gogs-CVE-2025-8110">CVE-2025-8110</a>.
+            </p>
+
+            <p>
+                After cloning the repository and slightly modifying the script to suit my needs (removing the registration step and replacing 
+                the credentials with my own user's) I obtain a shell as root and the root flag.
+            </p>
+            
+            <div class="code">
+                root@silentium:/opt/gogs/gogs/data/tmp/local-repo/2# whoami && id && hostname && cat /root/root.txt <br>
+                <o/2# whoami && id && hostname && cat /root/root.txt  <br>
+                root <br>
+                uid=0(root) gid=0(root) groups=0(root) <br>
+                silentium <br>
+                ffbccbb8c41b5d6be0f4745f72244259 <br>
+                root@silentium:/opt/gogs/gogs/data/tmp/local-repo/2#  <br>
+            </div>
+        </section>
+
+        <section id="flags">
+            <h2>cat flags</h2>
+            <h3><b>User Flag:</b> 9282d6d47a95cd81f977fc764444bd38</h3>
+            <h3><b>Root Flag:</b> ffbccbb8c41b5d6be0f4745f72244259</h3>
+        </section>
+
+    </main>
+
+
+   <footer>
+      <p>Built with GitHub Pages —— Securing the web, one bug at a time.</p>
+      <p>&copy; 2025 K0D14K</p>
+   </footer>
+
+   <script src="/static/script.js"></script>
+   <script> lister() </script>
+</body>

